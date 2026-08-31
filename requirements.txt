@@ -1,0 +1,2 @@
+# Team A currently uses only Python standard-library modules.
+# No third-party dependency is required.
