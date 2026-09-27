@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Smart Campus Lab & Resource Optimizer</title>
+    <meta name="description" content="Centralized Administrator Portal for Campus Laboratory & Resource Management, Monitoring Engine Allocations, and Hardware Maintenance">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="admin-body">
+    <div class="admin-layout">
+        <!-- ==========================================
+             ADMIN SIDEBAR (10 Sections)
+             ========================================== -->
+        <aside class="admin-sidebar" id="admin-sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-wrapper">
+                    <div class="brand-icon">⚡</div>
+                    <div class="brand-text">
+                        <h2>ADMIN PANEL</h2>
+                        <p>Smart Campus Optimizer</p>
+                    </div>
+                </div>
+                <button class="close-sidebar-btn" id="close-sidebar-btn" aria-label="Close Sidebar">&times;</button>
+            </div>
+
+            <div class="sidebar-nav-container">
+                <div class="nav-category">Main Dashboard</div>
+                <a href="#overview" class="admin-nav-item active" data-section="overview" id="nav-overview">
+                    <span class="nav-icon">📊</span>
+                    <span>Overview</span>
+                </a>
+
+                <div class="nav-category">Campus Infrastructure</div>
+                <a href="#labs" class="admin-nav-item" data-section="labs" id="nav-labs">
+                    <span class="nav-icon">🏢</span>
+                    <span>Lab Management</span>
+                </a>
+                <a href="#resources" class="admin-nav-item" data-section="resources" id="nav-resources">
+                    <span class="nav-icon">💻</span>
+                    <span>Resource Management</span>
+                </a>
+                <a href="#maintenance" class="admin-nav-item" data-section="maintenance" id="nav-maintenance">
+                    <span class="nav-icon">🛠️</span>
+                    <span>Maintenance</span>
+                    <span class="nav-badge" id="sidebar-mnt-badge">3</span>
+                </a>
+
+                <div class="nav-category">Operations & Monitoring</div>
+                <a href="#bookings" class="admin-nav-item" data-section="bookings" id="nav-bookings">
+                    <span class="nav-icon">📋</span>
+                    <span>Booking Requests</span>
+                    <span class="nav-badge" style="background-color: #3b82f6;" id="sidebar-req-badge">6</span>
+                </a>
+                <a href="#users" class="admin-nav-item" data-section="users" id="nav-users">
+                    <span class="nav-icon">👥</span>
+                    <span>Users</span>
+                </a>
+
+                <div class="nav-category">Analytics & System</div>
+                <a href="#reports" class="admin-nav-item" data-section="reports" id="nav-reports">
+                    <span class="nav-icon">📈</span>
+                    <span>Reports</span>
+                </a>
+                <a href="#logs" class="admin-nav-item" data-section="logs" id="nav-logs">
+                    <span class="nav-icon">📜</span>
+                    <span>Activity Logs</span>
+                </a>
+                <a href="#settings" class="admin-nav-item" data-section="settings" id="nav-settings">
+                    <span class="nav-icon">⚙️</span>
+                    <span>Settings</span>
+                </a>
+            </div>
+
+            <div class="sidebar-footer">
+                <a href="#" class="admin-nav-item logout-item" id="admin-logout-btn">
+                    <span class="nav-icon">🚪</span>
+                    <span>Logout</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- ==========================================
+             MAIN CONTENT WRAPPER
+             ========================================== -->
+        <div class="admin-main">
+            <!-- Top Sticky Header -->
+            <header class="admin-top-header">
+                <div class="header-left-group">
+                    <button class="mobile-menu-toggle" id="open-sidebar-btn" aria-label="Open Navigation">&#9776;</button>
+                    <div class="header-title-box">
+                        <h1 id="page-title">Overview</h1>
+                        <p id="page-subtitle">Campus lab allocation, hardware health, and engine telemetry</p>
+                    </div>
+                </div>
+
+                <div class="header-right-group">
+                    <!-- Live Polling Indicator -->
+                    <div class="live-status-pill" id="live-indicator" title="Dashboard automatically polls state every 5 seconds">
+                        <span class="pulse-dot"></span>
+                        <span id="live-text">Live Sync (5s)</span>
+                    </div>
+
+                    <!-- Notification Bell -->
+                    <div class="notif-wrapper">
+                        <button class="header-icon-btn" id="notif-btn" title="System Notifications">
+                            🔔
+                            <span class="notif-badge-count" id="notif-count">2</span>
+                        </button>
+                    </div>
+
+                    <!-- Admin Profile Card -->
+                    <div class="admin-user-profile">
+                        <div class="profile-avatar">AD</div>
+                        <div class="profile-meta">
+                            <span class="admin-name">System Administrator</span>
+                            <span class="admin-role-tag">Super Admin</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard Content Container -->
+            <main class="admin-content-body">
+
+                <!-- ==========================================
+                     SECTION 1: OVERVIEW
+                     ========================================== -->
+                <section id="overview" class="admin-section active">
+                    <div class="section-hero">
+                        <div>
+                            <h2>System Command & Telemetry 👋</h2>
+                            <p>Real-time campus laboratory capacity, scheduling engines, and maintenance status.</p>
+                        </div>
+                        <div class="hero-actions">
+                            <button class="btn-admin btn-admin-secondary" id="refresh-overview-btn">🔄 Refresh Data</button>
+                            <button class="btn-admin btn-admin-primary" id="btn-quick-log-ticket">+ Log Maintenance</button>
+                        </div>
+                    </div>
+
+                    <!-- 8 KPI Cards Grid -->
+                    <div class="kpi-cards-grid">
+                        <div class="kpi-card kpi-total">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Total Labs</span>
+                                <div class="kpi-icon-bubble">🏢</div>
+                            </div>
+                            <div class="kpi-value-box">
+                                <span class="kpi-value" id="kpi-total-labs">12</span>
+                            </div>
+                            <div class="kpi-subtext">Across 3 Academic Blocks</div>
+                        </div>
+
+                        <div class="kpi-card kpi-available">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Available Labs</span>
+                                <div class="kpi-icon-bubble" style="color: #059669; background: #ecfdf5;">✅</div>
+                            </div>
+                            <div class="kpi-value-box">
+                                <span class="kpi-value" id="kpi-available-labs" style="color: #059669;">7</span>
+                            </div>
+                            <div class="kpi-subtext">Ready for Immediate Booking</div>
+                        </div>
+
+                        <div class="kpi-card kpi-busy">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Busy / Full</span>
+                                <div class="kpi-icon-bubble" style="color: #d97706; background: #fffbeb;">⏳</div>
+                            </div>
+                            <div class="kpi-value-box">
+                                <span class="kpi-value" id="kpi-busy-labs" style="color: #d97706;">3</span>
+                            </div>
+                            <div class="kpi-subtext">Active Sessions Ongoing</div>
+                        </div>
+
+                        <div class="kpi-card kpi-maintenance">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Maintenance Labs</span>
+                                <div class="kpi-icon-bubble" style="color: #475569; background: #f1f5f9;">🛠️</div>
+                            </div>
+                            <div class="kpi-value-box">
+                                <span class="kpi-value" id="kpi-maintenance-labs" style="color: #475569;">2</span>
+                            </div>
+                            <div class="kpi-subtext">Hardware / Network Servicing</div>
+                        </div>
+
+                        <div class="kpi-card kpi-pending">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Pending Requests</span>
+                                <div class="kpi-icon-bubble" style="color: #7c3aed; background: #f5f3ff;">📋</div>
+                            </div>
+                            <div class="kpi-value-box">
+                                <span class="kpi-value" id="kpi-pending-reqs" style="color: #7c3aed;">2</span>
+                            </div>
+                            <div class="kpi-subtext">Queued in Team A OS Engine</div>
+                        </div>
+
+                        <div class="kpi-card kpi-active">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Active Bookings</span>
+                                <div class="kpi-icon-bubble" style="color: #0891b2; background: #ecfeff;">📅</div>
+                            </div>
+                            <div class="kpi-value-box">
+                                <span class="kpi-value" id="kpi-active-bookings" style="color: #0891b2;">4</span>
+                            </div>
+                            <div class="kpi-subtext">Confirmed & Allocated Slots</div>
+                        </div>
+
+                        <div class="kpi-card kpi-resources">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Total Resources</span>
+                                <div class="kpi-icon-bubble" style="color: #4f46e5; background: #eef2ff;">💻</div>
+                            </div>
+                            <div class="kpi-value-box">
+                                <span class="kpi-value" id="kpi-total-resources" style="color: #4f46e5;">445</span>
+                            </div>
+                            <div class="kpi-subtext">PCs, Projectors, Printers, Kits</div>
+                        </div>
+
+                        <div class="kpi-card kpi-tickets">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Maintenance Tickets</span>
+                                <div class="kpi-icon-bubble" style="color: #dc2626; background: #fef2f2;">⚠️</div>
+                            </div>
+                            <div class="kpi-value-box">
+                                <span class="kpi-value" id="kpi-maintenance-reqs" style="color: #dc2626;">3</span>
+                            </div>
+                            <div class="kpi-subtext">Active Equipment Faults</div>
+                        </div>
+                    </div>
+
+                    <!-- Engine Architecture Status Banner -->
+                    <div class="engine-architecture-banner">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                            <div>
+                                <h3 style="font-size: 1.1rem; font-weight: 700;">Engine Integration & Modular Responsibilities</h3>
+                                <p style="font-size: 0.82rem; color: #94a3b8;">Admin Panel monitors and orchestrates states. Core scheduling & storage are delegated to respective team engines.</p>
+                            </div>
+                            <span style="font-size: 0.75rem; background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.4); padding: 0.25rem 0.6rem; border-radius: 20px; font-weight: 600;">All Systems Operational</span>
+                        </div>
+
+                        <div class="engine-grid">
+                            <div class="engine-item">
+                                <h4><span class="engine-tag-a">●</span> TEAM A — OS Engine</h4>
+                                <p>CPU-inspired scheduling, priority queues, mutex lab locking, preemption & conflict resolution.</p>
+                            </div>
+                            <div class="engine-item">
+                                <h4><span class="engine-tag-b">●</span> TEAM B — DSA Engine</h4>
+                                <p>Graph-based path recommendation, alternative lab routing, and load-balanced resource matching.</p>
+                            </div>
+                            <div class="engine-item">
+                                <h4><span class="engine-tag-c">●</span> TEAM C — DBMS Engine</h4>
+                                <p>Transactional ACID persistence, booking ledger, audit trails, and concurrency management.</p>
+                            </div>
+                            <div class="engine-item">
+                                <h4><span class="engine-tag-d">●</span> TEAM D — Web Engine</h4>
+                                <p>Admin, Faculty, Student, and Lab Assistant responsive dashboards with REST communication.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Conflict Preemption Live Widget -->
+                    <div class="conflict-highlight-card">
+                        <div class="conflict-header">
+                            <div>
+                                <h4 style="font-size: 1.05rem; font-weight: 700; color: #1e1b4b;">⚡ Real-Time Priority Conflict & Preemption Monitor</h4>
+                                <p style="font-size: 0.8rem; color: #64748b;">Demonstrating Team A OS Engine preemptive scheduling: Faculty requests supersede Student requests on slot collision.</p>
+                            </div>
+                            <span class="conflict-badge">TEAM A SCHEDULER RESULT</span>
+                        </div>
+
+                        <div class="conflict-comparison-grid">
+                            <div class="conflict-slot-card faculty-slot">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                                    <strong style="color: #6b21a8; font-size: 0.9rem;">Faculty Request (REQ-102)</strong>
+                                    <span class="priority-pill priority-high">⚡ HIGH PRIORITY</span>
+                                </div>
+                                <div style="font-size: 0.82rem; color: #334155;">
+                                    <strong>User:</strong> Prof. Rajesh Kulkarni (IT Dept)<br>
+                                    <strong>Target:</strong> LAB 204 (10:00 AM – 12:00 PM)<br>
+                                    <strong>Purpose:</strong> Advanced Distributed Systems Lab Exam
+                                </div>
+                            </div>
+
+                            <div class="conflict-vs">VS</div>
+
+                            <div class="conflict-slot-card student-slot">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                                    <strong style="color: #0369a1; font-size: 0.9rem;">Student Request (REQ-101)</strong>
+                                    <span class="priority-pill priority-normal">NORMAL PRIORITY</span>
+                                </div>
+                                <div style="font-size: 0.82rem; color: #334155;">
+                                    <strong>User:</strong> Atharv Patil (Comp Eng)<br>
+                                    <strong>Target:</strong> LAB 204 (10:00 AM – 12:00 PM)<br>
+                                    <strong>Purpose:</strong> OS Kernel Simulation Practice
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="conflict-outcome-box">
+                            <span>🛡️</span>
+                            <div>
+                                <strong>Scheduling Resolution:</strong> Faculty request <strong>Approved & Locked</strong> on LAB 204 by Team A. Student automatically routed to <strong>Alternative Lab (LAB 201)</strong> via Team B DSA recommendation.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Lab Summary & Recent Logs Preview -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem;">
+                        <div class="admin-card" style="margin-bottom: 0;">
+                            <div class="card-title-row">
+                                <h3>🏢 Live Lab Status Quickview</h3>
+                                <a href="#labs" class="btn-admin btn-admin-secondary btn-admin-sm" data-section="labs">View All Labs &rarr;</a>
+                            </div>
+                            <div class="admin-table-container">
+                                <table class="admin-table" id="quick-labs-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Lab ID</th>
+                                            <th>Location</th>
+                                            <th>Capacity</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="quick-labs-tbody">
+                                        <!-- Injected via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="admin-card" style="margin-bottom: 0;">
+                            <div class="card-title-row">
+                                <h3>📜 Recent Engine Activity</h3>
+                                <a href="#logs" class="btn-admin btn-admin-secondary btn-admin-sm" data-section="logs">View Audit Log &rarr;</a>
+                            </div>
+                            <div class="activity-log-timeline" id="quick-activity-timeline">
+                                <!-- Injected via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==========================================
+                     SECTION 2: LAB MANAGEMENT
+                     ========================================== -->
+                <section id="labs" class="admin-section">
+                    <div class="section-hero">
+                        <div>
+                            <h2>Lab Management</h2>
+                            <p>Inspect physical laboratory capacity, location specs, and toggle operational maintenance.</p>
+                        </div>
+                        <div class="hero-actions">
+                            <button class="btn-admin btn-admin-secondary" id="toggle-labs-view-btn">Switch to Cards</button>
+                        </div>
+                    </div>
+
+                    <!-- Toolbar / Search & Filter -->
+                    <div class="admin-card">
+                        <div class="admin-toolbar">
+                            <div class="search-box-wrapper">
+                                <span class="search-icon">🔍</span>
+                                <input type="text" class="search-input" id="labs-search-input" placeholder="Search lab by ID, name, or location...">
+                            </div>
+
+                            <div class="filter-group" id="labs-status-filter-pills">
+                                <button class="btn-filter-pill active" data-filter="all">All Labs</button>
+                                <button class="btn-filter-pill" data-filter="Available">Available</button>
+                                <button class="btn-filter-pill" data-filter="Busy">Busy</button>
+                                <button class="btn-filter-pill" data-filter="Full">Full</button>
+                                <button class="btn-filter-pill" data-filter="Faculty Reserved">Faculty Reserved</button>
+                                <button class="btn-filter-pill" data-filter="Maintenance">Maintenance</button>
+                            </div>
+                        </div>
+
+                        <!-- Table View -->
+                        <div class="admin-table-container" id="labs-table-container">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>Lab ID</th>
+                                        <th>Lab Name</th>
+                                        <th>Location</th>
+                                        <th>Capacity</th>
+                                        <th>Status</th>
+                                        <th>Resources</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="labs-tbody">
+                                    <!-- Injected via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Card View (Hidden by default) -->
+                        <div class="lab-cards-grid" id="labs-card-grid" style="display: none;">
+                            <!-- Injected via JS -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==========================================
+                     SECTION 3: RESOURCE MANAGEMENT
+                     ========================================== -->
+                <section id="resources" class="admin-section">
+                    <div class="section-hero">
+                        <div>
+                            <h2>Resource Management</h2>
+                            <p>Granular inventory tracking of PCs, Projectors, Printers, and Network gear inside each laboratory.</p>
+                        </div>
+                    </div>
+
+                    <div class="admin-card">
+                        <div class="admin-toolbar">
+                            <div class="search-box-wrapper">
+                                <span class="search-icon">🔍</span>
+                                <input type="text" class="search-input" id="resources-search-input" placeholder="Search resource ID, name, or specs...">
+                            </div>
+
+                            <div class="filter-group">
+                                <select class="filter-select" id="resource-lab-select">
+                                    <option value="all">Filter by Lab: All Labs</option>
+                                    <option value="LAB 204" selected>LAB 204 (High Performance)</option>
+                                    <option value="LAB 101">LAB 101 (Computer Lab 1)</option>
+                                    <option value="LAB 102">LAB 102 (Computer Lab 2)</option>
+                                    <option value="LAB 105">LAB 105 (Network & Security)</option>
+                                    <option value="LAB 201">LAB 201 (Advanced Software)</option>
+                                </select>
+
+                                <select class="filter-select" id="resource-type-select">
+                                    <option value="all">Type: All Types</option>
+                                    <option value="PC">PC Workstations</option>
+                                    <option value="Projector">Projectors</option>
+                                    <option value="Printer">Printers</option>
+                                    <option value="Other Equipment">Other Equipment</option>
+                                </select>
+
+                                <select class="filter-select" id="resource-status-select">
+                                    <option value="all">Status: All Statuses</option>
+                                    <option value="Available">Available</option>
+                                    <option value="Occupied">Occupied</option>
+                                    <option value="Maintenance">Maintenance</option>
+                                    <option value="Reserved">Reserved</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="admin-table-container">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>Resource ID</th>
+                                        <th>Type</th>
+                                        <th>Lab</th>
+                                        <th>Status</th>
+                                        <th>Specifications / Notes</th>
+                                        <th>Last Updated</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="resources-tbody">
+                                    <!-- Injected via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==========================================
+                     SECTION 4: MAINTENANCE
+                     ========================================== -->
+                <section id="maintenance" class="admin-section">
+                    <div class="section-hero">
+                        <div>
+                            <h2>Maintenance & Equipment Health</h2>
+                            <p>Track reported equipment anomalies, schedule repairs, and log resolution audit notes.</p>
+                        </div>
+                        <div class="hero-actions">
+                            <button class="btn-admin btn-admin-primary" id="btn-create-ticket-modal">+ Log Maintenance Ticket</button>
+                        </div>
+                    </div>
+
+                    <div class="admin-card">
+                        <div class="admin-toolbar">
+                            <div class="filter-group" id="mnt-tab-pills">
+                                <button class="btn-filter-pill active" data-tab="active">Under Maintenance</button>
+                                <button class="btn-filter-pill" data-tab="completed">Completed History</button>
+                                <button class="btn-filter-pill" data-tab="all">All Tickets</button>
+                            </div>
+
+                            <div class="search-box-wrapper">
+                                <span class="search-icon">🔍</span>
+                                <input type="text" class="search-input" id="mnt-search-input" placeholder="Search ticket ID, lab, or issue...">
+                            </div>
+                        </div>
+
+                        <div class="admin-table-container">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>Ticket ID</th>
+                                        <th>Target</th>
+                                        <th>Lab</th>
+                                        <th>Issue Description</th>
+                                        <th>Priority</th>
+                                        <th>Reported At</th>
+                                        <th>Assigned To</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="maintenance-tbody">
+                                    <!-- Injected via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==========================================
+                     SECTION 5: BOOKING REQUESTS (MONITORING)
+                     ========================================== -->
+                <section id="bookings" class="admin-section">
+                    <div class="section-hero">
+                        <div>
+                            <h2>Booking Requests Monitor</h2>
+                            <p>Oversee faculty & student reservation queues and Team A OS Engine scheduling resolutions.</p>
+                        </div>
+                        <div style="background-color: #f1f5f9; padding: 0.4rem 0.85rem; border-radius: 8px; font-size: 0.78rem; color: #475569;">
+                            ℹ️ <em>Admin monitors requests. Scheduling & priority algorithms are handled by Team A.</em>
+                        </div>
+                    </div>
+
+                    <div class="admin-card">
+                        <div class="admin-toolbar">
+                            <div class="search-box-wrapper">
+                                <span class="search-icon">🔍</span>
+                                <input type="text" class="search-input" id="bookings-search-input" placeholder="Search request ID, user, or lab...">
+                            </div>
+
+                            <div class="filter-group">
+                                <select class="filter-select" id="bookings-role-filter">
+                                    <option value="all">All Roles</option>
+                                    <option value="Faculty">Faculty Only (HIGH Priority)</option>
+                                    <option value="Student">Student Only (NORMAL Priority)</option>
+                                </select>
+
+                                <select class="filter-select" id="bookings-status-filter">
+                                    <option value="all">All Statuses</option>
+                                    <option value="Approved">Approved</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="Alternative Suggested">Alternative Suggested</option>
+                                    <option value="Rejected">Rejected</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="admin-table-container">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>Request ID</th>
+                                        <th>User</th>
+                                        <th>Role</th>
+                                        <th>Lab</th>
+                                        <th>Date</th>
+                                        <th>Time Slot</th>
+                                        <th>Priority</th>
+                                        <th>Status</th>
+                                        <th>Engine Resolution</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bookings-tbody">
+                                    <!-- Injected via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==========================================
+                     SECTION 6: USERS
+                     ========================================== -->
+                <section id="users" class="admin-section">
+                    <div class="section-hero">
+                        <div>
+                            <h2>User Directory</h2>
+                            <p>Registered students, faculty members, lab assistants, and system administrators.</p>
+                        </div>
+                    </div>
+
+                    <div class="admin-card">
+                        <div class="admin-toolbar">
+                            <div class="search-box-wrapper">
+                                <span class="search-icon">🔍</span>
+                                <input type="text" class="search-input" id="users-search-input" placeholder="Search by name, User ID, or email...">
+                            </div>
+
+                            <div class="filter-group" id="user-role-filter-pills">
+                                <button class="btn-filter-pill active" data-role="all">All Roles</button>
+                                <button class="btn-filter-pill" data-role="Student">Students</button>
+                                <button class="btn-filter-pill" data-role="Faculty">Faculty</button>
+                                <button class="btn-filter-pill" data-role="Lab Assistant">Lab Assistants</button>
+                                <button class="btn-filter-pill" data-role="Admin">Admins</button>
+                            </div>
+                        </div>
+
+                        <div class="admin-table-container">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>User ID</th>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Department</th>
+                                        <th>Status</th>
+                                        <th>Last Login</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-tbody">
+                                    <!-- Injected via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==========================================
+                     SECTION 7: REPORTS
+                     ========================================== -->
+                <section id="reports" class="admin-section">
+                    <div class="section-hero">
+                        <div>
+                            <h2>Reports & System Analytics</h2>
+                            <p>Campus laboratory utilization, booking throughput, and hardware reliability metrics.</p>
+                        </div>
+                        <div class="hero-actions">
+                            <button class="btn-admin btn-admin-secondary" id="btn-export-reports">📥 Export Report Data</button>
+                        </div>
+                    </div>
+
+                    <!-- Utilization & Peak Load Grid -->
+                    <div class="reports-grid">
+                        <!-- Lab Utilization Bar Visuals (Pure CSS) -->
+                        <div class="admin-card">
+                            <div class="card-title-row">
+                                <h3>📊 Lab Utilization Metrics</h3>
+                                <span class="card-subtitle">Active Usage vs Total Capacity</span>
+                            </div>
+                            <div class="progress-bar-container" id="lab-utilization-bars">
+                                <!-- Injected via JS -->
+                            </div>
+                        </div>
+
+                        <!-- Peak Hours Distribution (Canvas 2D) -->
+                        <div class="admin-card">
+                            <div class="card-title-row">
+                                <h3>⏰ Peak Booking Load Distribution</h3>
+                                <span class="card-subtitle">Hourly Capacity Demand</span>
+                            </div>
+                            <div class="canvas-chart-box">
+                                <canvas id="peakHoursCanvas" width="400" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Secondary Reports Grid -->
+                    <div class="reports-grid">
+                        <!-- Faculty vs Student Requests (Pure CSS) -->
+                        <div class="admin-card">
+                            <div class="card-title-row">
+                                <h3>👥 Faculty vs Student Demand</h3>
+                                <span class="card-subtitle">Request Volume Ratio</span>
+                            </div>
+                            <div style="margin-top: 1rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.88rem; font-weight: 700;">
+                                    <span style="color: #7c3aed;">Faculty Requests: 42% (62)</span>
+                                    <span style="color: #0284c7;">Student Requests: 58% (86)</span>
+                                </div>
+                                <div class="progress-track" style="height: 18px; display: flex;">
+                                    <div style="width: 42%; background: linear-gradient(90deg, #8b5cf6, #7c3aed); border-radius: 6px 0 0 6px;" title="Faculty: 42%"></div>
+                                    <div style="width: 58%; background: linear-gradient(90deg, #38bdf8, #0284c7); border-radius: 0 6px 6px 0;" title="Student: 58%"></div>
+                                </div>
+                                <div style="margin-top: 1.25rem; font-size: 0.8rem; color: #64748b; line-height: 1.5;">
+                                    • Faculty requests reserve entire laboratories for exams and workshops.<br>
+                                    • Student requests allocate individual workstation clusters or single seats.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Maintenance MTTR & Reliability -->
+                        <div class="admin-card">
+                            <div class="card-title-row">
+                                <h3>🛠️ Maintenance & MTTR Statistics</h3>
+                                <span class="card-subtitle">Mean Time To Repair</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.75rem;">
+                                <div style="background: #f8fafc; border: 1px solid var(--card-border); padding: 1rem; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 1.8rem; font-weight: 800; color: #059669;">3.4 hrs</div>
+                                    <div style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Average MTTR</div>
+                                </div>
+                                <div style="background: #f8fafc; border: 1px solid var(--card-border); padding: 1rem; border-radius: 10px; text-align: center;">
+                                    <div style="font-size: 1.8rem; font-weight: 800; color: #2563eb;">91.2%</div>
+                                    <div style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Resolution Rate</div>
+                                </div>
+                            </div>
+                            <div style="margin-top: 1rem; font-size: 0.8rem; color: #64748b;">
+                                Total tickets resolved this month: <strong>31 of 34</strong>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==========================================
+                     SECTION 8: ACTIVITY LOGS
+                     ========================================== -->
+                <section id="logs" class="admin-section">
+                    <div class="section-hero">
+                        <div>
+                            <h2>System Activity & Engine Audit Logs</h2>
+                            <p>Trace immutable transactions across Team A (OS Engine), Team B (DSA), Team C (DBMS), and Admin.</p>
+                        </div>
+                        <div class="hero-actions">
+                            <button class="btn-admin btn-admin-secondary" id="btn-export-logs">📥 Export CSV</button>
+                        </div>
+                    </div>
+
+                    <div class="admin-card">
+                        <div class="admin-toolbar">
+                            <div class="search-box-wrapper">
+                                <span class="search-icon">🔍</span>
+                                <input type="text" class="search-input" id="logs-search-input" placeholder="Search log by action, resource, or actor...">
+                            </div>
+
+                            <div class="filter-group">
+                                <select class="filter-select" id="logs-module-filter">
+                                    <option value="all">All Modules</option>
+                                    <option value="OS Engine">Team A (OS Engine)</option>
+                                    <option value="DSA Engine">Team B (DSA Engine)</option>
+                                    <option value="DBMS">Team C (DBMS)</option>
+                                    <option value="Admin">Admin Portal</option>
+                                    <option value="Booking Engine">Booking Engine</option>
+                                    <option value="Maintenance">Maintenance</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="admin-table-container">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Actor</th>
+                                        <th>Role / Module</th>
+                                        <th>Action Description</th>
+                                        <th>Target Resource</th>
+                                        <th>Outcome</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="activity-logs-tbody">
+                                    <!-- Injected via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==========================================
+                     SECTION 9: SETTINGS
+                     ========================================== -->
+                <section id="settings" class="admin-section">
+                    <div class="section-hero">
+                        <div>
+                            <h2>Admin Dashboard Settings</h2>
+                            <p>Configure polling frequency, engine parameters, and campus lab operating hours.</p>
+                        </div>
+                    </div>
+
+                    <div class="reports-grid">
+                        <div class="admin-card">
+                            <div class="card-title-row">
+                                <h3>⚙️ Telemetry & Polling Controls</h3>
+                            </div>
+                            <div class="form-field">
+                                <label for="polling-interval-select">Live Refresh Polling Rate</label>
+                                <select id="polling-interval-select">
+                                    <option value="3000">3 Seconds (High Frequency)</option>
+                                    <option value="5000" selected>5 Seconds (Recommended Demo)</option>
+                                    <option value="10000">10 Seconds</option>
+                                    <option value="0">Manual Only (Pause Polling)</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label>Notification Alerts</label>
+                                <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.85rem; color: #475569;">
+                                    <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: normal; cursor: pointer;">
+                                        <input type="checkbox" id="pref-high-prio" checked> Alert on Faculty High-Priority Conflict
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: normal; cursor: pointer;">
+                                        <input type="checkbox" id="pref-mnt" checked> Alert on New Hardware Fault Ticket
+                                    </label>
+                                </div>
+                            </div>
+                            <button class="btn-admin btn-admin-primary" id="btn-save-settings">Save Preferences</button>
+                        </div>
+
+                        <div class="admin-card">
+                            <div class="card-title-row">
+                                <h3>🔄 Database & Demo State Manager</h3>
+                            </div>
+                            <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 1.25rem;">
+                                Reset all mock database states, active maintenance flags, and allocations back to pristine initial demo values.
+                            </p>
+                            <button class="btn-admin btn-admin-danger" id="btn-reset-demo-db">Reset Database to Default</button>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         MODALS & CONFIRMATION DIALOGS
+         ========================================== -->
+
+    <!-- Lab Maintenance Confirmation Modal -->
+    <div class="admin-modal-overlay" id="lab-maintenance-modal">
+        <div class="admin-modal-dialog">
+            <div class="modal-header">
+                <h3 id="lab-mnt-modal-title">Lab Maintenance Confirmation</h3>
+                <button class="modal-close-btn" data-close="lab-maintenance-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="lab-mnt-modal-desc" style="font-size: 0.9rem; color: #334155; margin-bottom: 1rem;">
+                    Are you sure you want to change the status of this laboratory?
+                </p>
+                <div class="form-field" id="lab-mnt-reason-box">
+                    <label for="lab-mnt-reason">Reason / Maintenance Notes</label>
+                    <input type="text" id="lab-mnt-reason" placeholder="e.g. Network switch upgrade, hardware inspection...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-admin btn-admin-secondary" data-close="lab-maintenance-modal">Cancel</button>
+                <button class="btn-admin btn-admin-danger" id="btn-confirm-lab-maintenance">Confirm Change</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resource Maintenance Confirmation Modal -->
+    <div class="admin-modal-overlay" id="resource-modal">
+        <div class="admin-modal-dialog">
+            <div class="modal-header">
+                <h3 id="res-modal-title">Update Resource Status</h3>
+                <button class="modal-close-btn" data-close="resource-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="res-override-warning" style="display: none; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem; color: #be123c; font-size: 0.82rem;">
+                    ⚠️ <strong>Warning:</strong> This resource is currently active in a Faculty Reservation / Team A Allocation. Overriding its state will notify the scheduling engine.
+                </div>
+                <p id="res-modal-desc" style="font-size: 0.9rem; color: #334155; margin-bottom: 1rem;"></p>
+                <div class="form-field">
+                    <label for="res-modal-reason">Reason / Diagnostic Notes</label>
+                    <input type="text" id="res-modal-reason" placeholder="e.g. Keyboard malfunctioning, monitor replaced...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-admin btn-admin-secondary" data-close="resource-modal">Cancel</button>
+                <button class="btn-admin btn-admin-primary" id="btn-confirm-res-status">Save Status</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Complete Maintenance Ticket Modal -->
+    <div class="admin-modal-overlay" id="resolve-ticket-modal">
+        <div class="admin-modal-dialog">
+            <div class="modal-header">
+                <h3>Resolve Maintenance Ticket</h3>
+                <button class="modal-close-btn" data-close="resolve-ticket-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="resolve-ticket-desc" style="font-size: 0.9rem; color: #334155; margin-bottom: 1rem;">
+                    Mark this ticket as completed and restore the target resource/lab to Available status.
+                </p>
+                <div class="form-field">
+                    <label for="resolve-ticket-notes">Resolution Summary Notes</label>
+                    <textarea id="resolve-ticket-notes" rows="3" placeholder="e.g. Replaced faulty RAM, tested 100% stable..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-admin btn-admin-secondary" data-close="resolve-ticket-modal">Cancel</button>
+                <button class="btn-admin btn-admin-success" id="btn-confirm-resolve-ticket">Mark Completed</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create New Maintenance Ticket Modal -->
+    <div class="admin-modal-overlay" id="create-ticket-modal">
+        <div class="admin-modal-dialog">
+            <div class="modal-header">
+                <h3>Log New Maintenance Ticket</h3>
+                <button class="modal-close-btn" data-close="create-ticket-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="new-ticket-form">
+                    <div class="form-field">
+                        <label for="new-ticket-type">Target Type</label>
+                        <select id="new-ticket-type">
+                            <option value="Resource">Specific Resource / Workstation</option>
+                            <option value="Lab">Entire Laboratory</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="new-ticket-lab">Laboratory</label>
+                        <select id="new-ticket-lab">
+                            <option value="LAB 101">LAB 101</option>
+                            <option value="LAB 102">LAB 102</option>
+                            <option value="LAB 103">LAB 103</option>
+                            <option value="LAB 104">LAB 104</option>
+                            <option value="LAB 105">LAB 105</option>
+                            <option value="LAB 201">LAB 201</option>
+                            <option value="LAB 204" selected>LAB 204</option>
+                            <option value="LAB 301">LAB 301</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="new-ticket-target">Target ID (e.g. PC-04 or LAB 204)</label>
+                        <input type="text" id="new-ticket-target" placeholder="e.g. PC-04" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="new-ticket-issue">Issue Description</label>
+                        <textarea id="new-ticket-issue" rows="2" placeholder="Describe the fault or required servicing..." required></textarea>
+                    </div>
+                    <div class="form-field">
+                        <label for="new-ticket-priority">Priority</label>
+                        <select id="new-ticket-priority">
+                            <option value="Low">Low</option>
+                            <option value="Medium" selected>Medium</option>
+                            <option value="High">High</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-admin btn-admin-secondary" data-close="create-ticket-modal">Cancel</button>
+                <button class="btn-admin btn-admin-primary" id="btn-submit-new-ticket">Create Ticket</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Item Details Modal -->
+    <div class="admin-modal-overlay" id="details-modal">
+        <div class="admin-modal-dialog">
+            <div class="modal-header">
+                <h3 id="details-modal-title">Item Details</h3>
+                <button class="modal-close-btn" data-close="details-modal">&times;</button>
+            </div>
+            <div class="modal-body" id="details-modal-body">
+                <!-- Injected via JS -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-admin btn-admin-secondary" data-close="details-modal">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="admin-toast-container" id="admin-toast-container"></div>
+
+    <!-- Core Scripts -->
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>

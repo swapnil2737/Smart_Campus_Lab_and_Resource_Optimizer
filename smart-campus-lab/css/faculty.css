@@ -1,0 +1,25 @@
+/* css/faculty.css */
+:root {
+    --primary-color: #4a235a; /* Deep purple for faculty to distinguish */
+    --accent-color: #8e44ad;
+}
+
+.lab-card.faculty-reserved {
+    border-top-color: #6f42c1;
+    background-color: #fcfaff;
+}
+
+.lab-card.faculty-reserved .lab-status {
+    background: #e0d4f5;
+    color: #4a235a;
+    font-weight: 700;
+}
+
+.lab-card.faculty-reserved .util-fill {
+    background: #6f42c1;
+}
+
+.status-faculty-reserved {
+    background: #e0d4f5;
+    color: #4a235a;
+}
