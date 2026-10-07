@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Assistant Dashboard - Smart Campus Lab & Resource Optimizer</title>
+    <meta name="description" content="Dedicated Lab Assistant Portal for Resource Status Monitoring, Schedule Tracking, and Equipment Maintenance">
+    <!-- Pure Vanilla CSS only -->
+    <link rel="stylesheet" href="css/lab-assistant.css">
+</head>
+<body class="lab-assistant-body">
+    <div class="dashboard-wrapper">
+        <!-- ==========================================================
+             SIDEBAR (Strictly 5 items: Overview, Resource Status, Today's Schedule, Maintenance, Logout)
+             ========================================================== -->
+        <aside class="la-sidebar" id="la-sidebar" aria-label="Lab Assistant Navigation">
+            <div class="sidebar-brand-header">
+                <div class="brand-title-group">
+                    <div class="brand-badge-icon" aria-hidden="true">🛠️</div>
+                    <div>
+                        <h2>LAB ASSISTANT</h2>
+                        <p>Smart Campus Optimizer</p>
+                    </div>
+                </div>
+                <button class="close-sidebar-btn" id="close-sidebar-btn" aria-label="Close Sidebar">&times;</button>
+            </div>
+
+            <!-- Strictly 4 Main Navigation Links -->
+            <nav class="sidebar-nav-list">
+                <a href="#overview" class="nav-link-item active" data-section="overview" id="nav-overview">
+                    <span class="nav-icon">📊</span>
+                    <span>Overview</span>
+                </a>
+                <a href="#resources" class="nav-link-item" data-section="resources" id="nav-resources">
+                    <span class="nav-icon">🖥️</span>
+                    <span>Resource Status</span>
+                </a>
+                <a href="#schedule" class="nav-link-item" data-section="schedule" id="nav-schedule">
+                    <span class="nav-icon">📅</span>
+                    <span>Today's Schedule</span>
+                </a>
+                <a href="#requests" class="nav-link-item" data-section="requests" id="nav-requests">
+                    <span class="nav-icon">📋</span>
+                    <span>Booking Requests</span>
+                    <span class="pending-nav-badge" id="badge-pending-requests" style="display: none;">0</span>
+                </a>
+                <a href="#maintenance" class="nav-link-item" data-section="maintenance" id="nav-maintenance">
+                    <span class="nav-icon">🔧</span>
+                    <span>Maintenance</span>
+                </a>
+            </nav>
+
+            <!-- 5th Item: Logout -->
+            <div class="sidebar-bottom">
+                <button class="nav-logout-btn" id="logout-btn" type="button">
+                    <span class="nav-icon">🚪</span>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- ==========================================================
+             MAIN CONTENT AREA
+             ========================================================== -->
+        <div class="main-wrapper">
+            <!-- Top Navbar -->
+            <header class="top-navbar">
+                <div class="navbar-left">
+                    <button class="hamburger-btn" id="hamburger-btn" aria-label="Open Navigation Menu">&#9776;</button>
+                    <h1>LAB ASSISTANT DASHBOARD</h1>
+                </div>
+
+                <div class="navbar-right">
+                    <!-- Live Polling Indicator -->
+                    <div class="polling-status-pill" title="Synchronizing live resource states every 5 seconds">
+                        <span class="pulse-dot"></span>
+                        <span>Live Sync Active</span>
+                    </div>
+
+                    <!-- User Profile Chip -->
+                    <div class="user-profile-chip">
+                        <div class="profile-avatar" aria-hidden="true">👨‍🔧</div>
+                        <div class="profile-info">
+                            <span class="profile-name" id="user-display-name">Lab Assistant</span>
+                            <span class="profile-role">Central Computing Facility</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content Container -->
+            <main class="content-container">
+
+                <!-- ==========================================================
+                     SECTION 1: OVERVIEW
+                     ========================================================== -->
+                <section id="section-overview" class="dashboard-section active-section">
+                    <div class="section-hero">
+                        <h2>Welcome back, Lab Assistant</h2>
+                        <p>Monitor real-time campus hardware status, view today's approved lab bookings, and track maintenance tickets.</p>
+                    </div>
+
+                    <!-- 4 Simple KPI Cards -->
+                    <div class="kpi-cards-grid">
+                        <div class="kpi-card kpi-total">
+                            <div class="kpi-data-group">
+                                <span class="kpi-label">Total Resources</span>
+                                <span class="kpi-number" id="kpi-total">--</span>
+                            </div>
+                            <div class="kpi-icon-badge" aria-hidden="true">🖥️</div>
+                        </div>
+
+                        <div class="kpi-card kpi-available">
+                            <div class="kpi-data-group">
+                                <span class="kpi-label">Available</span>
+                                <span class="kpi-number" id="kpi-available">--</span>
+                            </div>
+                            <div class="kpi-icon-badge" aria-hidden="true">✅</div>
+                        </div>
+
+                        <div class="kpi-card kpi-occupied">
+                            <div class="kpi-data-group">
+                                <span class="kpi-label">Occupied</span>
+                                <span class="kpi-number" id="kpi-occupied">--</span>
+                            </div>
+                            <div class="kpi-icon-badge" aria-hidden="true">👥</div>
+                        </div>
+
+                        <div class="kpi-card kpi-maintenance">
+                            <div class="kpi-data-group">
+                                <span class="kpi-label">Maintenance</span>
+                                <span class="kpi-number" id="kpi-maintenance">--</span>
+                            </div>
+                            <div class="kpi-icon-badge" aria-hidden="true">⚠️</div>
+                        </div>
+
+                        <div class="kpi-card" style="border-left: 4px solid #f59e0b; cursor: pointer;" data-switch="requests">
+                            <div class="kpi-data-group">
+                                <span class="kpi-label">Pending Requests</span>
+                                <span class="kpi-number" id="kpi-pending-requests" style="color: #f59e0b;">0</span>
+                            </div>
+                            <div class="kpi-icon-badge" aria-hidden="true" style="color: #f59e0b;">📋</div>
+                        </div>
+                    </div>
+
+                    <!-- Overview Three-Column / Panels: Today's Schedule, Pending Requests & Maintenance Alerts -->
+                    <div class="overview-grid">
+                        <!-- Pending Requests Quickview -->
+                        <div class="overview-card-panel">
+                            <div class="panel-header-row">
+                                <h3><span>📋</span> Pending Booking Requests</h3>
+                                <a href="#requests" class="view-all-link" data-switch="requests">Review Requests &rarr;</a>
+                            </div>
+                            <div class="quick-schedule-list" id="overview-requests-list">
+                                <!-- Injected via JS -->
+                            </div>
+                        </div>
+
+                        <!-- Today's Schedule Preview -->
+                        <div class="overview-card-panel">
+                            <div class="panel-header-row">
+                                <h3><span>📅</span> Today's Schedule</h3>
+                                <a href="#schedule" class="view-all-link" data-switch="schedule">View Full Schedule &rarr;</a>
+                            </div>
+                            <div class="quick-schedule-list" id="overview-schedule-list">
+                                <!-- Injected via JS -->
+                            </div>
+                        </div>
+
+                        <!-- Maintenance Alerts & Notifications -->
+                        <div class="overview-card-panel">
+                            <div class="panel-header-row">
+                                <h3><span>🔔</span> Maintenance Alerts & Notifications</h3>
+                                <a href="#maintenance" class="view-all-link" data-switch="maintenance">Manage Tickets &rarr;</a>
+                            </div>
+                            <div class="notification-list" id="overview-notif-list">
+                                <!-- Injected via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+
+                <!-- ==========================================================
+                     SECTION 2: RESOURCE STATUS
+                     ========================================================== -->
+                <section id="section-resources" class="dashboard-section">
+                    <div class="section-hero">
+                        <h2>Resource Status</h2>
+                        <p>Complete status inventory of computers, projectors, network devices, and peripherals across all campus labs.</p>
+                    </div>
+
+                    <!-- Search and Filter Bar -->
+                    <div class="search-filter-card">
+                        <div class="search-input-group">
+                            <span class="search-input-icon" aria-hidden="true">🔍</span>
+                            <label for="resource-search-input" class="sr-only" style="display:none;">Search Resource</label>
+                            <input type="text" id="resource-search-input" class="search-input" placeholder="Search by Resource ID / Lab (e.g. PC-04, LAB 102)..." autocomplete="off">
+                        </div>
+
+                        <div class="filter-pills-group" id="status-filter-pills">
+                            <button type="button" class="filter-pill active" data-filter="all">All</button>
+                            <button type="button" class="filter-pill" data-filter="Available">Available</button>
+                            <button type="button" class="filter-pill" data-filter="Occupied">Occupied</button>
+                            <button type="button" class="filter-pill" data-filter="Reserved">Reserved</button>
+                            <button type="button" class="filter-pill" data-filter="Maintenance">Maintenance</button>
+                            <button type="button" class="filter-pill" data-filter="Offline">Offline</button>
+                        </div>
+                    </div>
+
+                    <!-- Resources Table -->
+                    <div class="data-table-card">
+                        <div class="table-responsive">
+                            <table class="styled-table" id="resources-table">
+                                <thead>
+                                    <tr>
+                                        <th>Resource ID</th>
+                                        <th>Lab</th>
+                                        <th>Type</th>
+                                        <th>Status</th>
+                                        <th>Last Updated</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="resources-table-tbody">
+                                    <!-- Dynamic Resource Rows Injected via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+
+                <!-- ==========================================================
+                     SECTION 3: TODAY'S SCHEDULE (VIEW ONLY)
+                     ========================================================== -->
+                <section id="section-schedule" class="dashboard-section">
+                    <div class="section-hero">
+                        <h2>TODAY'S SCHEDULE</h2>
+                        <p>Approved bookings scheduled for today. Note: Scheduling, priority, and resource locking are controlled by Team A OS Engine (View Only).</p>
+                    </div>
+
+                    <div class="schedule-container" id="schedule-cards-list">
+                        <!-- Dynamic Approved Schedule Cards Injected via JS -->
+                    </div>
+                </section>
+
+
+                <!-- ==========================================================
+                     SECTION 4: PENDING BOOKING REQUESTS
+                     ========================================================== -->
+                <section id="section-requests" class="dashboard-section">
+                    <div class="section-hero">
+                        <h2>Pending Booking Requests</h2>
+                        <p>Review, approve, or reject student and faculty lab booking requests stored in SQL Server.</p>
+                    </div>
+
+                    <div class="data-table-card">
+                        <div class="table-responsive">
+                            <table class="styled-table" id="pending-requests-table">
+                                <thead>
+                                    <tr>
+                                        <th>Req ID</th>
+                                        <th>Applicant</th>
+                                        <th>Role</th>
+                                        <th>Lab</th>
+                                        <th>Date</th>
+                                        <th>Time Slot</th>
+                                        <th>Purpose</th>
+                                        <th>Submitted</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pending-requests-tbody">
+                                    <!-- Dynamic Pending Booking Rows Injected via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+
+                <!-- ==========================================================
+                     SECTION 5: MAINTENANCE
+                     ========================================================== -->
+                <section id="section-maintenance" class="dashboard-section">
+                    <div class="maintenance-header-actions">
+                        <div class="section-hero" style="margin-bottom: 0;">
+                            <h2>Resource Maintenance</h2>
+                            <p>Track reported issues, monitor ongoing repairs, and restore operational resources to Available state.</p>
+                        </div>
+
+                        <button type="button" class="btn-report-issue" id="open-report-modal-btn">
+                            <span>+</span> Report Issue
+                        </button>
+                    </div>
+
+                    <!-- Three Columns: Pending, Under Maintenance, Completed -->
+                    <div class="maintenance-columns-grid">
+                        <!-- Column 1: Pending -->
+                        <div class="maintenance-column">
+                            <div class="column-header">
+                                <h3><span>⏳</span> Pending</h3>
+                                <span class="count-badge" id="badge-pending-count">0</span>
+                            </div>
+                            <div class="maintenance-cards-list" id="list-pending-maintenance">
+                                <!-- Injected via JS -->
+                            </div>
+                        </div>
+
+                        <!-- Column 2: Under Maintenance -->
+                        <div class="maintenance-column">
+                            <div class="column-header">
+                                <h3><span>🔧</span> Under Maintenance</h3>
+                                <span class="count-badge" id="badge-progress-count">0</span>
+                            </div>
+                            <div class="maintenance-cards-list" id="list-progress-maintenance">
+                                <!-- Injected via JS -->
+                            </div>
+                        </div>
+
+                        <!-- Column 3: Completed -->
+                        <div class="maintenance-column">
+                            <div class="column-header">
+                                <h3><span>✅</span> Completed</h3>
+                                <span class="count-badge" id="badge-completed-count">0</span>
+                            </div>
+                            <div class="maintenance-cards-list" id="list-completed-maintenance">
+                                <!-- Injected via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- ==========================================================
+         REPORT MAINTENANCE ISSUE MODAL
+         ========================================================== -->
+    <div class="modal-overlay" id="report-issue-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-dialog-card">
+            <div class="modal-header-box">
+                <h3 id="modal-title">Report Maintenance Issue</h3>
+                <button type="button" class="btn-close-modal" id="close-report-modal-btn" aria-label="Close dialog">&times;</button>
+            </div>
+
+            <form id="report-issue-form" class="modal-form-body">
+                <div class="form-row-two-col">
+                    <div class="form-field-group">
+                        <label for="modal-resource-id">Resource ID *</label>
+                        <select id="modal-resource-id" class="form-control-select" required>
+                            <option value="" disabled selected>Select Resource ID</option>
+                            <!-- Dynamically populated from resources -->
+                        </select>
+                    </div>
+
+                    <div class="form-field-group">
+                        <label for="modal-lab">Lab *</label>
+                        <input type="text" id="modal-lab" class="form-control-input" readonly placeholder="Auto-selected Lab" required>
+                    </div>
+                </div>
+
+                <div class="form-row-two-col">
+                    <div class="form-field-group">
+                        <label for="modal-issue-type">Issue Type *</label>
+                        <select id="modal-issue-type" class="form-control-select" required>
+                            <option value="" disabled selected>Select Issue Type</option>
+                            <option value="Keyboard">Keyboard</option>
+                            <option value="Mouse">Mouse</option>
+                            <option value="Monitor">Monitor</option>
+                            <option value="CPU">CPU</option>
+                            <option value="Network">Network</option>
+                            <option value="Software">Software</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-field-group">
+                        <label for="modal-priority">Priority *</label>
+                        <select id="modal-priority" class="form-control-select" required>
+                            <option value="Low">Low</option>
+                            <option value="Medium" selected>Medium</option>
+                            <option value="High">High</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-field-group">
+                    <label for="modal-description">Description *</label>
+                    <textarea id="modal-description" class="form-control-textarea" rows="3" placeholder="Describe the hardware or software defect in detail..." required></textarea>
+                </div>
+
+                <div class="modal-footer-box">
+                    <button type="button" class="btn-secondary-cancel" id="cancel-report-modal-btn">Cancel</button>
+                    <button type="submit" class="btn-primary-submit" id="submit-issue-btn">SUBMIT ISSUE</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+    <!-- Vanilla Scripts -->
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/lab-assistant.js"></script>
+</body>
+</html>

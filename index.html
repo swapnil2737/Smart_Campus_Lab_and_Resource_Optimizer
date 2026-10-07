@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Smart Campus Lab & Resource Optimizer</title>
+    <meta name="description" content="Smart Campus Lab & Resource Optimizer by Team D - Web Engine">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="login-page">
+    <main class="login-container">
+        <!-- Left Side -->
+        <section class="login-left">
+            <div class="login-brand">
+                <h1>Smart Campus Lab & Resource Optimizer</h1>
+                <p class="tagline">Smart Scheduling. Efficient Resources. Better Campus.</p>
+                <p class="team-subtitle">Team D – Web Engine</p>
+            </div>
+            
+            <div class="illustration-container">
+                <div class="tech-grid-display">
+                    <div class="tech-metric-box">
+                        <div class="tech-metric-label">Operational Labs</div>
+                        <div class="tech-metric-num">12 / 12</div>
+                        <div class="tech-metric-sub">● All Nodes Online</div>
+                    </div>
+                    <div class="tech-metric-box">
+                        <div class="tech-metric-label">Optimization Engine</div>
+                        <div class="tech-metric-num">98.4%</div>
+                        <div class="tech-metric-sub">▲ +4.2% Efficiency</div>
+                    </div>
+                    <div class="tech-metric-box">
+                        <div class="tech-metric-label">Active Workstations</div>
+                        <div class="tech-metric-num">340</div>
+                        <div class="tech-metric-sub">Live Real-time Sync</div>
+                    </div>
+                    <div class="tech-metric-box">
+                        <div class="tech-metric-label">Energy Mode</div>
+                        <div class="tech-metric-num">ECO-PRO</div>
+                        <div class="tech-metric-sub">Smart Auto-Power</div>
+                    </div>
+                </div>
+                <div class="tech-stats-row">
+                    <span class="tech-pill">Team D • Web Engine</span>
+                    <span class="tech-pill">5s Fast Polling</span>
+                    <span class="tech-pill">Role-Based Access</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Side -->
+        <section class="login-right">
+            <div class="login-card">
+                <h2>Welcome Back</h2>
+                <p class="subtitle">Login to continue to your portal</p>
+                
+                <div id="login-error" class="alert alert-error" style="display: none;">
+                    Invalid username or password.
+                </div>
+
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="role">Select Your Role</label>
+                        <select id="role" required>
+                            <option value="" disabled selected>Select Role</option>
+                            <option value="Student">Student</option>
+                            <option value="Faculty">Faculty</option>
+                            <option value="Lab Assistant">Lab Assistant</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="username">Username / Email</label>
+                        <input type="text" id="username" placeholder="Enter your username" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="password" placeholder="Enter your password" required>
+                            <button type="button" id="toggle-password" class="btn-icon">Show</button>
+                        </div>
+                    </div>
+
+                    <div class="form-options">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="remember-me">
+                            <span>Remember me</span>
+                        </label>
+                        <a href="#" class="forgot-password" id="forgot-password-link">Forgot password?</a>
+                    </div>
+
+                    <button type="submit" class="btn-primary login-btn">Login</button>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <!-- Forgot Password Modal -->
+    <div class="modal-overlay" id="forgot-password-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center; padding:1rem;">
+        <div class="modal-dialog-card" style="background:#18181b; border:1px solid #27272a; border-radius:14px; max-width:420px; width:100%; padding:1.75rem; box-shadow:0 20px 50px rgba(0,0,0,0.7);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h3 style="margin:0; color:#f4f4f5; font-size:1.2rem; font-weight:700;">Reset Your Password</h3>
+                <button type="button" id="close-forgot-modal" style="background:none; border:none; color:#a1a1aa; font-size:1.6rem; cursor:pointer; line-height:1;">&times;</button>
+            </div>
+            <p style="color:#a1a1aa; font-size:0.85rem; margin-bottom:1.25rem; line-height:1.4;">
+                Enter your registered Email or Student/Employee ID and choose a new password.
+            </p>
+
+            <div id="forgot-error" class="alert alert-error" style="display:none; margin-bottom:1rem; padding:0.6rem 0.8rem; font-size:0.85rem; border-radius:6px;"></div>
+            <div id="forgot-success" class="alert alert-success" style="display:none; margin-bottom:1rem; padding:0.6rem 0.8rem; font-size:0.85rem; background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; border-radius:6px;"></div>
+
+            <form id="forgot-password-form">
+                <div class="form-group" style="margin-bottom:1rem;">
+                    <label for="forgot-email" style="color:#e4e4e7; font-size:0.82rem; font-weight:600; display:block; margin-bottom:0.35rem;">Email or Username / ID</label>
+                    <input type="text" id="forgot-email" placeholder="e.g. atharva.jadhav@rit.edu or CSE004" required style="width:100%; padding:0.65rem 0.85rem; border-radius:8px; border:1px solid #3f3f46; background:#27272a; color:#f4f4f5; font-size:0.9rem; box-sizing:border-box;">
+                </div>
+
+                <div class="form-group" style="margin-bottom:1rem;">
+                    <label for="forgot-new-password" style="color:#e4e4e7; font-size:0.82rem; font-weight:600; display:block; margin-bottom:0.35rem;">New Password</label>
+                    <input type="password" id="forgot-new-password" placeholder="Enter new password" required minlength="4" style="width:100%; padding:0.65rem 0.85rem; border-radius:8px; border:1px solid #3f3f46; background:#27272a; color:#f4f4f5; font-size:0.9rem; box-sizing:border-box;">
+                </div>
+
+                <div class="form-group" style="margin-bottom:1.5rem;">
+                    <label for="forgot-confirm-password" style="color:#e4e4e7; font-size:0.82rem; font-weight:600; display:block; margin-bottom:0.35rem;">Confirm New Password</label>
+                    <input type="password" id="forgot-confirm-password" placeholder="Re-enter new password" required minlength="4" style="width:100%; padding:0.65rem 0.85rem; border-radius:8px; border:1px solid #3f3f46; background:#27272a; color:#f4f4f5; font-size:0.9rem; box-sizing:border-box;">
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+                    <button type="button" id="cancel-forgot-modal" style="padding:0.6rem 1.2rem; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:#d4d4d8; cursor:pointer; font-weight:600;">Cancel</button>
+                    <button type="submit" id="submit-forgot-btn" class="btn-primary" style="padding:0.6rem 1.4rem; border-radius:8px; background:var(--accent-color, #f97316); color:#fff; border:none; cursor:pointer; font-weight:600;">Reset Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+/* ==========================================================================
+   FACULTY DASHBOARD SPECIFIC STYLES
+   Unified High-Performance Dark Theme
+   ========================================================================== */
+
+:root {
+    --primary-color: #FF6A00;
+    --accent-color: #FF6A00;
+}
+
+/* Faculty Reserved Lab Card Highlight (High Priority Blue) */
+.lab-card.faculty-reserved {
+    border-top-color: #3B82F6;
+    background-color: var(--bg-card);
+    border-color: rgba(59, 130, 246, 0.4);
+}
+
+.lab-card.faculty-reserved .lab-status {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60A5FA;
+    font-weight: 800;
+    border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.lab-card.faculty-reserved .util-fill {
+    background: #3B82F6;
+}
+
+.status-faculty-reserved {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60A5FA;
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    font-weight: 800;
+}
+
+/* Faculty Reservation Notice Badge */
+.faculty-priority-callout {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-left: 4px solid #3B82F6;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-sm);
+    color: #93C5FD;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 0.75rem;
+}
