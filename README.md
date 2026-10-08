@@ -16,10 +16,7 @@ Team A owns:
 - Thread synchronization
 - Conceptual multi-resource deadlock demonstration
 - Deadlock prevention demonstration
-- Optional paging analogy
-- Public coordination interface for other teams
 
-Team A does not own the frontend, authentication, notifications, or the overall project database unless the project integration plan explicitly assigns those responsibilities to Team A.
 
 ## Files
 
