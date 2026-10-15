@@ -1,0 +1,36 @@
+# Python environments and generated files
+backend/.venv/
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Test, coverage, and runtime output
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.log
+*.tmp
+
+# Editor and operating-system files
+.idea/
+.vscode/*.user
+.vscode/*.userossc
+.vscode/*.suo
+.DS_Store
+Thumbs.db
+
+# Local database exports and backups
+*.bak
+*.mdf
+*.ndf
+*.ldf
