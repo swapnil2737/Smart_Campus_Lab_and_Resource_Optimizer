@@ -4,15 +4,15 @@ _A role-based campus laboratory booking and resource-management system built wit
 
 ---
 
-## 📋 Project overview
+##  Project overview
 
 Smart Campus Lab & Resource Optimizer helps a college manage laboratory availability, equipment resources, bookings, maintenance requests, notifications, and role-specific workflows from one web application.
 
 The application includes separate experiences for **students**, **faculty**, **lab assistants**, and **administrators**. A Flask API provides the business logic and SQL Server stores operational data such as users, labs, resources, bookings, schedules, maintenance, notifications, audit logs, and scheduling decisions.
 
-> ⚠️ **Development status:** This is a student mini-project intended for local demonstration and academic evaluation. Review authentication, authorization, CORS, input validation, secret management, and deployment hardening before using it with real users or production data.
+>  **Development status:** This is a student mini-project intended for local demonstration and academic evaluation. Review authentication, authorization, CORS, input validation, secret management, and deployment hardening before using it with real users or production data.
 
-## ✨ Features
+## Features
 
 | Area | Capabilities |
 | --- | --- |
@@ -24,7 +24,7 @@ The application includes separate experiences for **students**, **faculty**, **l
 | Scheduling | Booking conflict checks, availability checks, approval workflow, time allocation, and optional Team A priority scheduling |
 | Database | SQL Server schema and seed script for roles, users, labs, resources, bookings, schedules, maintenance, logs, and notifications |
 
-## 🧱 Architecture
+## Architecture
 
 The project is a static frontend served separately from a Flask API. The API connects to SQL Server through `pyodbc`; the optional Team A integration is used when its package is available.
 
@@ -33,16 +33,16 @@ flowchart TB
     accTitle: Smart Campus System Architecture
     accDescr: Browser portals call the Flask API, which validates requests, applies booking and maintenance rules, and reads or writes SQL Server data.
 
-    browser["🖥️ Browser portals"]
-    login["🔐 Authentication"]
-    student["🎓 Student portal"]
-    faculty["👩‍🏫 Faculty portal"]
-    assistant["🧰 Lab assistant portal"]
-    admin["🛠️ Admin portal"]
-    api["🌐 Flask REST API"]
-    rules["⚙️ Booking, maintenance, and scheduling rules"]
-    team_a["📊 Optional Team A priority scheduler"]
-    database[("🗄️ SQL Server<br/>smart_campus_lab")]
+    browser["Browser portals"]
+    login[" Authentication"]
+    student["Student portal"]
+    faculty["Faculty portal"]
+    assistant["Lab assistant portal"]
+    admin["Admin portal"]
+    api["Flask REST API"]
+    rules["ooking, maintenance, and scheduling rules"]
+    team_a["Optional Team A priority scheduler"]
+    database[("SQL Server<br/>smart_campus_lab")]
 
     browser --> login
     browser --> student
@@ -84,7 +84,7 @@ flowchart TB
 └── .env.example                       # Database configuration template
 ```
 
-## 🚀 Quick start
+## Quick start
 
 ### Prerequisites
 
@@ -183,11 +183,11 @@ Open `http://127.0.0.1:5500/index.html` and keep the Flask API running in a sepa
 
 The frontend defaults to `http://127.0.0.1:5000/api`. To use another API host, define `window.SMART_CAMPUS_API_URL` before loading the frontend scripts.
 
-## 🔐 Demo accounts
+## Demo accounts
 
 The SQL seed script contains development-only sample accounts for all four roles. Read the account rows in `smart_campus_lab_SQLServer_SSMS_FIXED.sql` after importing the database.
 
-> ⚠️ **Do not reuse seeded passwords in a public or production deployment.** Replace the sample credentials, remove unnecessary personal-looking seed data, and use a controlled account-provisioning process before publishing a live instance.
+> **Do not reuse seeded passwords in a public or production deployment.** Replace the sample credentials, remove unnecessary personal-looking seed data, and use a controlled account-provisioning process before publishing a live instance.
 
 ## 📡 API overview
 
@@ -246,7 +246,7 @@ The optional Team A scheduler is not included in this repository. The adapter re
 
 Serve the repository root with Live Server or `python -m http.server`; do not open the HTML files with a `file://` URL. Confirm that the relative `css/` and `js/` paths resolve from the selected page.
 
-## 🤝 Contributing
+## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before making changes. At minimum:
 
@@ -256,16 +256,3 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before making changes. At minimum:
 4. Run the relevant diagnostic scripts against a local database.
 5. Describe setup, testing, and known limitations in the pull request.
 
-## 📄 License
-
-No license has been selected for this project yet. Add a `LICENSE` file before accepting external contributions or presenting the repository as reusable open-source software. Without a license, default copyright restrictions apply.
-
-## 📌 GitHub upload checklist
-
-- [ ] Remove or replace development-only sample credentials before public deployment.
-- [ ] Confirm that `backend\.venv`, `__pycache__`, `.env`, and database files are ignored.
-- [ ] Run the SQL script on a clean local database.
-- [ ] Start the Flask API and verify `/api/health` and `/api/db-test`.
-- [ ] Serve `index.html` over HTTP and test each role portal.
-- [ ] Add the project owner, academic year, and selected license.
-- [ ] Push the repository and update the clone URL in this README.
