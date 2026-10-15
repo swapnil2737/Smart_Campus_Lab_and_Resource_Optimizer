@@ -1,6 +1,7 @@
 // js/faculty.js
 
 document.addEventListener('DOMContentLoaded', () => {
+
     // Role Security
     if (window.Auth) {
         Auth.verifyRole('Faculty');
@@ -29,13 +30,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const switchSection = (sectionId) => {
         sections.forEach(s => s.classList.remove('active'));
         navLinks.forEach(l => l.classList.remove('active'));
-        
+
         const targetSection = document.getElementById(sectionId);
         if (targetSection) targetSection.classList.add('active');
-        
+
         const targetLink = document.querySelector(`[data-section="${sectionId}"]`);
         if (targetLink) targetLink.classList.add('active');
-        
+
         if (window.innerWidth <= 768 && sidebar) {
             sidebar.classList.remove('open');
         }
@@ -80,11 +81,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (s === 'REJECTED') {
             return `<span class="status-badge status-busy" style="background:#fee2e2; color:#b91c1c; padding:3px 8px; border-radius:6px; font-weight:600; font-size:0.8rem;">✗ Rejected</span>`;
         }
+        if (s === 'EXPIRED') {
+            return `<span class="status-badge" style="background:#fee2e2; color:#991b1b; padding:3px 8px; border-radius:6px; font-weight:600; font-size:0.8rem;">⌛ Expired</span>`;
+        }
         return `<span class="status-badge">${status}</span>`;
     };
 
-    // --- Lab Availability Section ---
+    // =========================================================
+    // LAB AVAILABILITY
+    // =========================================================
     let allLabs = [];
+
+    const isLabMaintenanceStatus = (lab) => {
+        const statusUpper = String(lab.status || '').trim().toUpperCase();
+        const maintPCs = Number(lab.maintenanceResources ?? 0);
+        return statusUpper === 'MAINTENANCE' || statusUpper === 'INACTIVE' || maintPCs >= 5;
+    };
 
     const populateDropdown = (labs) => {
         const select = document.getElementById('book-lab-select');
@@ -95,18 +107,20 @@ document.addEventListener('DOMContentLoaded', () => {
             labs.forEach(lab => {
                 const opt = document.createElement('option');
                 opt.value = lab.id;
-                const statusUpper = String(lab.status || '').trim().toUpperCase();
-                const totalPCs = lab.totalResources ?? lab.totalCapacity ?? lab.total ?? lab.capacity ?? 0;
+                const totalPCs = lab.totalResources ?? lab.totalCapacity ?? lab.total ?? lab.capacity ?? 20;
                 const availPCs = lab.availableResources ?? lab.capacity ?? totalPCs;
-                const maintPCs = lab.maintenanceResources ?? 0;
+                const maintPCs = Number(lab.maintenanceResources ?? 0);
+                const isFullMaint = isLabMaintenanceStatus(lab);
 
-                let statusText = lab.status ? ` (${lab.status})` : '';
-                if (maintPCs > 0 && statusUpper === 'AVAILABLE') {
-                    statusText = ` (${availPCs}/${totalPCs} PCs Available)`;
+                let statusText = ' (Available)';
+                if (isFullMaint) {
+                    statusText = ' (Maintenance)';
+                } else if (maintPCs > 0) {
+                    statusText = ` (${availPCs}/${totalPCs} PCs Available - ${maintPCs} in Maintenance)`;
                 }
 
                 opt.textContent = `${lab.name}${statusText}`;
-                if (statusUpper === 'MAINTENANCE' || statusUpper === 'INACTIVE') {
+                if (isFullMaint) {
                     opt.disabled = true;
                 }
                 select.appendChild(opt);
@@ -124,22 +138,32 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             allLabs = await API.getAvailableLabs();
 
-            const activeFilterBtn = document.querySelector('.filter-btn.active');
+            const activeFilterBtn = document.querySelector('#availability .filter-bar .filter-btn.active') || document.querySelector('#availability .filter-btn.active');
             const currentFilter = activeFilterBtn ? activeFilterBtn.dataset.filter : 'all';
-            if (currentFilter && currentFilter !== 'all') {
-                const filtered = allLabs.filter(l => String(l.status || '').toLowerCase() === currentFilter.toLowerCase());
-                renderLabs(filtered);
-            } else {
-                renderLabs(allLabs);
-            }
-
+            
+            filterAndRenderLabs(currentFilter);
             populateDropdown(allLabs);
 
-            const availableCount = allLabs.filter(l => String(l.status || '').toLowerCase() === 'available').length;
+            const availableCount = allLabs.filter(l => !isLabMaintenanceStatus(l)).length;
             const kpiAvail = document.getElementById('kpi-available-labs');
             if (kpiAvail) kpiAvail.textContent = String(availableCount).padStart(2, '0');
-        } catch (err) {
-            console.error('Error loading labs:', err);
+        } catch (error) {
+            console.error('Unable to load labs:', error);
+            showToast(error.message || 'Unable to load laboratories.', 'error');
+        }
+    };
+
+    const filterAndRenderLabs = (filter) => {
+        if (!filter || filter === 'all') {
+            renderLabs(allLabs);
+        } else if (filter === 'available') {
+            const filtered = allLabs.filter(l => !isLabMaintenanceStatus(l));
+            renderLabs(filtered);
+        } else if (filter === 'maintenance') {
+            const filtered = allLabs.filter(l => isLabMaintenanceStatus(l));
+            renderLabs(filtered);
+        } else {
+            renderLabs(allLabs);
         }
     };
 
@@ -147,149 +171,187 @@ document.addEventListener('DOMContentLoaded', () => {
         const grid = document.getElementById('labs-grid');
         if (!grid) return;
         grid.innerHTML = '';
-        
+
         const msgEl = document.getElementById('filter-result-msg');
         if (labs.length === 0) {
             if (msgEl) msgEl.textContent = "No laboratories found for this status.";
         } else {
             if (msgEl) msgEl.textContent = `${labs.length} laboratories found.`;
         }
-        
+
         labs.forEach(lab => {
-            const statusClass = String(lab.status || '').toLowerCase().replace(' ', '-');
-            const card = document.createElement('div');
-            card.className = `lab-card ${statusClass}`;
-            const totalPCs = lab.totalResources ?? lab.totalCapacity ?? lab.total ?? lab.capacity ?? 0;
+            const totalPCs = lab.totalResources ?? lab.totalCapacity ?? lab.total ?? lab.capacity ?? 20;
             const availPCs = lab.availableResources ?? lab.capacity ?? totalPCs;
-            const maintPCs = lab.maintenanceResources ?? 0;
-            const isAvailable = (lab.status !== 'MAINTENANCE' && lab.status !== 'FACULTY RESERVED' && lab.status !== 'Faculty Reserved' && lab.status !== 'Maintenance');
+            const maintPCs = Number(lab.maintenanceResources ?? 0);
+            const isFullMaint = isLabMaintenanceStatus(lab);
+
+            const card = document.createElement('div');
+            card.className = `lab-card ${isFullMaint ? 'maintenance' : 'available'}`;
 
             let capacityDisplay = `${totalPCs} PCs`;
-            if (maintPCs > 0 && totalPCs > 0) {
-                capacityDisplay = `${availPCs} / ${totalPCs} PCs Working <span style="color:#d9534f; font-size:0.8rem; font-weight:600;">(${maintPCs} in Maint.)</span>`;
+            if (isFullMaint) {
+                capacityDisplay = `0 / ${totalPCs} PCs Working <span style="color:#dc2626; font-size:0.8rem; font-weight:600;">(Under Maintenance)</span>`;
+            } else if (maintPCs > 0 && totalPCs > 0) {
+                capacityDisplay = `${availPCs} / ${totalPCs} PCs Available <span style="color:#dc2626; font-size:0.8rem; font-weight:600;">(${maintPCs} out of ${totalPCs} PCs under maintenance)</span>`;
+            } else {
+                capacityDisplay = `${totalPCs} / ${totalPCs} PCs Available`;
+            }
+
+            const statusBadge = isFullMaint
+                ? `<span class="lab-status status-busy" style="background:#fee2e2; color:#b91c1c; padding:3px 8px; border-radius:6px; font-weight:600; font-size:0.8rem;">Maintenance</span>`
+                : `<span class="lab-status status-available" style="background:#dcfce7; color:#15803d; padding:3px 8px; border-radius:6px; font-weight:600; font-size:0.8rem;">Available</span>`;
+
+            // Button color logic:
+            // - If lab reaches maintenance threshold (5+ PCs under maintenance) -> Red disabled button
+            // - If lab is available (< 5 PCs under maintenance) -> Standard Available button
+            let buttonHtml = '';
+            if (isFullMaint) {
+                buttonHtml = `<button class="btn-primary" disabled style="background-color: #dc2626 !important; color: #ffffff; cursor: not-allowed; opacity: 0.85;">UNDER MAINTENANCE</button>`;
+            } else {
+                buttonHtml = `<button class="btn-primary" onclick="requestLab('${lab.id}')" style="background-color: var(--accent-color); color: #ffffff;">REQUEST ENTIRE LAB</button>`;
             }
 
             card.innerHTML = `
-                <h3>${lab.name} <span class="lab-status ${statusClass === 'faculty-reserved' ? 'status-faculty-reserved' : ''}">${lab.status}</span></h3>
-                ${lab.status === 'FACULTY RESERVED' ? `<p style="color:#4a235a; font-weight:600; font-size:0.85rem; margin-bottom:1rem;">Unavailable during the reserved time.</p>` : ''}
+                <h3>${lab.name} ${statusBadge}</h3>
                 <div class="lab-stats">
                     <div>Capacity:<br><span>${capacityDisplay}</span></div>
                 </div>
                 <div class="util-bar">
-                    <div class="util-fill" style="width: ${lab.util || 0}%"></div>
+                    <div class="util-fill" style="width: ${isFullMaint ? '100%' : '0%'}; background: ${isFullMaint ? '#dc2626' : '#10b981'};"></div>
                 </div>
-                ${isAvailable 
-                    ? `<button class="btn-primary" onclick="requestLab('${lab.id}')" style="background-color: var(--accent-color);">REQUEST ENTIRE LAB</button>` 
-                    : `<button class="btn-primary" disabled>UNAVAILABLE</button>`}
+                ${buttonHtml}
             `;
             grid.appendChild(card);
         });
     };
 
-    // Filter Logic
-    const filterBtns = document.querySelectorAll('.filter-btn');
-    if (filterBtns.length > 0) {
-        filterBtns.forEach(btn => {
+    // Filter Logic for Lab Availability Grid
+    const availabilityFilterBtns = document.querySelectorAll('#availability .filter-btn');
+    if (availabilityFilterBtns.length > 0) {
+        availabilityFilterBtns.forEach(btn => {
             btn.addEventListener('click', () => {
-                filterBtns.forEach(b => b.classList.remove('active'));
+                availabilityFilterBtns.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                
-                const filter = btn.dataset.filter;
-                if (filter === 'all') {
-                    renderLabs(allLabs);
-                } else {
-                    const filtered = allLabs.filter(l => String(l.status || '').toLowerCase() === filter);
-                    renderLabs(filtered);
-                }
+                filterAndRenderLabs(btn.dataset.filter);
             });
         });
     }
 
+    // =========================================================
+    // REQUEST ENTIRE LAB & FORM INITIALIZATION
+    // =========================================================
     window.requestLab = (labId) => {
         switchSection('book');
         const labSelect = document.getElementById('book-lab-select');
         if (labSelect) {
             Array.from(labSelect.options).forEach(opt => {
-                if (String(opt.value) === String(labId)) opt.selected = true;
+                if (String(opt.value) === String(labId)) {
+                    opt.selected = true;
+                }
             });
             validateBookingForm();
         }
     };
 
     const loadBookLabInit = () => {
+        API.getResourceRecommendation()
+            .then(rec => {
+                const suggestedLab = document.getElementById('suggested-lab');
+                const suggestedReason = document.getElementById('suggested-reason');
+                if (suggestedLab) suggestedLab.textContent = rec.suggestedLab || 'Lab 2';
+                if (suggestedReason) suggestedReason.textContent = rec.reason || 'High availability slot';
+            })
+            .catch(err => console.error('Recommendation error:', err));
+
         if (allLabs.length === 0) {
-            API.getAvailableLabs().then(labs => {
-                allLabs = labs;
-                if (window.BookingUtils) {
-                    BookingUtils.populateLabDropdown(allLabs);
-                    BookingUtils.setMinimumBookingDate();
-                    BookingUtils.attachDateListener('book-date', 'validation-message');
-                }
-            });
+            API.getAvailableLabs()
+                .then(labs => {
+                    allLabs = labs;
+                    populateDropdown(allLabs);
+                    if (window.BookingUtils) {
+                        BookingUtils.setMinimumBookingDate();
+                        BookingUtils.attachDateListener('book-date', 'validation-message');
+                        BookingUtils.initTimeSelectSync('book-start', 'book-end');
+                    }
+                    validateBookingForm();
+                })
+                .catch(err => console.error('Lab loading error:', err));
         } else {
+            populateDropdown(allLabs);
             if (window.BookingUtils) {
-                BookingUtils.populateLabDropdown(allLabs);
                 BookingUtils.setMinimumBookingDate();
                 BookingUtils.attachDateListener('book-date', 'validation-message');
+                BookingUtils.initTimeSelectSync('book-start', 'book-end');
             }
+            validateBookingForm();
         }
     };
 
-    // --- Book Lab Section ---
+    // =========================================================
+    // BOOKING FORM VALIDATION & SUBMISSION
+    // =========================================================
     const validateBookingForm = async () => {
-        const labSelect = document.getElementById('book-lab-select').value;
-        const dateInput = document.getElementById('book-date').value;
-        const startInput = document.getElementById('book-start').value;
-        const endInput = document.getElementById('book-end').value;
-        
+        const labSelect = document.getElementById('book-lab-select')?.value;
+        const dateInput = document.getElementById('book-date')?.value;
+        const startInput = (window.BookingUtils && BookingUtils.getTimePickerValue('book-start')) || document.getElementById('book-start')?.value || '';
+        const endInput = (window.BookingUtils && BookingUtils.getTimePickerValue('book-end')) || document.getElementById('book-end')?.value || '';
+
         const submitBtn = document.getElementById('book-submit-btn');
         const capacityCard = document.getElementById('capacity-info-card');
         const teamBPanel = document.getElementById('team-b-panel');
         const validationMsg = document.getElementById('validation-message');
-        
+
+        if (!submitBtn) return;
         submitBtn.disabled = true;
         submitBtn.textContent = 'SEND LAB BOOKING REQUEST';
-        teamBPanel.classList.add('hidden');
+        if (teamBPanel) teamBPanel.classList.add('hidden');
         if (validationMsg) {
             validationMsg.textContent = '';
             validationMsg.style.color = '#333';
         }
-        
+
         if (labSelect) {
-            capacityCard.classList.remove('hidden');
+            if (capacityCard) capacityCard.classList.remove('hidden');
             const labs = allLabs.length > 0 ? allLabs : await API.getAvailableLabs();
             const lab = labs.find(l => String(l.id) === String(labSelect));
             if (lab) {
-                document.getElementById('info-lab-name').textContent = lab.name;
-                const totalPCs = lab.totalResources || lab.total || lab.capacity || 0;
-                document.getElementById('info-total-cap').textContent = `${totalPCs} PCs`;
-                document.getElementById('info-status').textContent = lab.status;
-                
-                let color = '#333';
-                const st = String(lab.status || '').toUpperCase();
-                if (st === 'AVAILABLE' || st === 'ACTIVE') color = '#155724';
-                if (st === 'BUSY' || st === 'OCCUPIED') color = '#856404';
-                if (st === 'FULL') color = '#721c24';
-                if (st === 'FACULTY RESERVED') color = '#4a235a';
-                if (st === 'MAINTENANCE') color = '#383d41';
-                document.getElementById('info-status').style.color = color;
-                document.getElementById('info-status').style.fontWeight = '700';
+                const infoLabName = document.getElementById('info-lab-name');
+                const infoTotalCap = document.getElementById('info-total-cap');
+                const infoStatus = document.getElementById('info-status');
 
-                if (st === 'FULL' || st === 'FACULTY RESERVED') {
+                if (infoLabName) infoLabName.textContent = lab.name;
+                const totalPCs = lab.totalResources || lab.totalCapacity || lab.total || lab.capacity || 0;
+                if (infoTotalCap) infoTotalCap.textContent = `${totalPCs} PCs`;
+                if (infoStatus) {
+                    infoStatus.textContent = lab.status;
+                    let color = '#333';
+                    const st = String(lab.status || '').toUpperCase();
+                    if (st === 'AVAILABLE' || st === 'ACTIVE') color = '#155724';
+                    if (st === 'BUSY' || st === 'OCCUPIED') color = '#856404';
+                    if (st === 'FULL') color = '#721c24';
+                    if (st === 'FACULTY RESERVED') color = '#4a235a';
+                    if (st === 'MAINTENANCE') color = '#383d41';
+                    infoStatus.style.color = color;
+                    infoStatus.style.fontWeight = '700';
+                }
+
+                if (lab.status && (String(lab.status).toUpperCase() === 'FULL' || String(lab.status).toUpperCase() === 'FACULTY RESERVED')) {
                     API.getResourceRecommendation().then(rec => {
-                        teamBPanel.classList.remove('hidden');
-                        document.getElementById('suggested-requested').textContent = lab.name;
-                        document.getElementById('suggested-lab').textContent = rec.suggestedLab;
-                        document.getElementById('suggested-reason').textContent = rec.reason;
+                        if (teamBPanel) {
+                            teamBPanel.classList.remove('hidden');
+                            document.getElementById('suggested-requested').textContent = lab.name;
+                            document.getElementById('suggested-lab').textContent = rec.suggestedLab;
+                            document.getElementById('suggested-reason').textContent = rec.reason;
+                        }
                     });
                 }
             }
         } else {
-            capacityCard.classList.add('hidden');
+            if (capacityCard) capacityCard.classList.add('hidden');
         }
 
         if (!labSelect || !dateInput || !startInput || !endInput) return;
-        
+
         if (window.BookingUtils) {
             const timeCheck = BookingUtils.validateTimeRules(dateInput, startInput, endInput);
             if (!timeCheck.valid) {
@@ -313,13 +375,25 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             if (startInput >= endInput) return;
         }
-        
+
         submitBtn.disabled = false;
     };
 
     const bookForm = document.getElementById('book-form');
     if (bookForm) {
-        const formInputs = ['book-lab-select', 'book-date', 'book-start', 'book-end', 'book-purpose'];
+        const formInputs = [
+            'book-lab-select',
+            'book-date',
+            'book-start',
+            'book-end',
+            'book-purpose',
+            'book-start-hour',
+            'book-start-min',
+            'book-start-ampm',
+            'book-end-hour',
+            'book-end-min',
+            'book-end-ampm'
+        ];
         formInputs.forEach(id => {
             const el = document.getElementById(id);
             if (el) {
@@ -346,12 +420,22 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.textContent = 'Submitting booking request...';
             btn.disabled = true;
 
+            const start24 = (window.BookingUtils && BookingUtils.getTimePickerValue('book-start')) || document.getElementById('book-start')?.value || '';
+            const end24 = (window.BookingUtils && BookingUtils.getTimePickerValue('book-end')) || document.getElementById('book-end')?.value || '';
+
+            if (!start24 || !end24) {
+                showToast('Please enter both start time and end time.', 'error');
+                btn.textContent = originalText;
+                btn.disabled = false;
+                return;
+            }
+
             const data = {
                 userId: sessionStorage.getItem('smartCampusUserId'),
                 lab: document.getElementById('book-lab-select').value,
                 date: document.getElementById('book-date').value,
-                startTime: document.getElementById('book-start').value,
-                endTime: document.getElementById('book-end').value,
+                startTime: `${document.getElementById('book-date').value}T${start24}:00`,
+                endTime: `${document.getElementById('book-date').value}T${end24}:00`,
                 purpose: document.getElementById('book-purpose').value
             };
 
@@ -364,13 +448,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.disabled = false;
                 return;
             }
-            
+
             if (result && result.success) {
                 showToast('Lab booking request submitted successfully.', 'success');
                 bookForm.reset();
                 document.getElementById('capacity-info-card').classList.add('hidden');
-                document.getElementById('team-b-panel').classList.add('hidden');
-                
+                const teamBPanel = document.getElementById('team-b-panel');
+                if (teamBPanel) teamBPanel.classList.add('hidden');
+
                 document.getElementById('request-result').innerHTML = `
                     <div class="alert alert-success" style="background:#d4edda; color:#155724; border:1px solid #c3e6cb; padding:1rem; border-radius:8px;">
                         <strong>Request ID:</strong> ${result.requestId}<br>
@@ -379,22 +464,84 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
 
-                // Reload user bookings immediately
+                // Reload bookings immediately
                 await loadMyBookings();
             }
-            
+
             btn.textContent = originalText;
             btn.disabled = true;
         });
     }
 
-    // --- My Requests & Booking History Section ---
+    // =========================================================
+    // MY REQUESTS & BOOKING HISTORY (COMBINED SINGLE TABLE)
+    // =========================================================
+    let cachedFacultyBookings = [];
+    let currentFacultyBookingFilter = 'all';
+
+    const renderCombinedFacultyBookingsTable = () => {
+        const tbody = document.getElementById('combined-bookings-tbody');
+        if (!tbody) return;
+
+        let filtered = cachedFacultyBookings.filter(b => {
+            if (currentFacultyBookingFilter === 'all') return true;
+            const st = String(b.status || '').toUpperCase();
+            if (currentFacultyBookingFilter === 'pending') {
+                return st === 'PENDING' || st === 'SCHEDULING';
+            }
+            if (currentFacultyBookingFilter === 'approved') {
+                return st === 'APPROVED' || st === 'CONFIRMED' || st === 'ACCEPTED';
+            }
+            if (currentFacultyBookingFilter === 'rejected') {
+                return st === 'REJECTED' || st === 'CANCELLED' || st === 'EXPIRED';
+            }
+            return true;
+        });
+
+        const countBadge = document.getElementById('faculty-booking-count-badge');
+        if (countBadge) {
+            countBadge.textContent = `Showing ${filtered.length} of ${cachedFacultyBookings.length} bookings`;
+        }
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-secondary); padding:2rem;">No reservation requests found for the selected filter.</td></tr>`;
+        } else {
+            tbody.innerHTML = filtered.map(b => {
+                const isPending = String(b.status || '').toUpperCase() === 'PENDING' || String(b.status || '').toUpperCase() === 'SCHEDULING';
+                return `
+                    <tr>
+                        <td><strong>${b.id}</strong></td>
+                        <td>${b.lab}</td>
+                        <td>${b.date}</td>
+                        <td>${b.time}</td>
+                        <td>${b.purpose || 'Class Practical'}</td>
+                        <td style="font-size:0.8rem; color:var(--text-secondary);">${b.submitted || b.submittedAt || 'Recently'}</td>
+                        <td>${getStatusBadge(b.status)}</td>
+                        <td><button onclick="checkStatus('${b.id}')" class="btn-primary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">${isPending ? 'Track Status' : 'View Details'}</button></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    };
+
+    // Filter pill buttons in faculty dashboard
+    document.querySelectorAll('#faculty-booking-filters .filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('#faculty-booking-filters .filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentFacultyBookingFilter = btn.dataset.bookingFilter || 'all';
+            renderCombinedFacultyBookingsTable();
+        });
+    });
+
     const loadMyBookings = async () => {
         try {
             const data = await API.getMyBookings();
             const pending = Array.isArray(data.pending) ? data.pending : [];
             const approved = Array.isArray(data.approved) ? data.approved : [];
             const allItems = Array.isArray(data.data) ? data.data : (data.items || []);
+
+            cachedFacultyBookings = allItems;
 
             // 1. Update KPI Counters
             const kpiPending = document.getElementById('kpi-pending-reqs');
@@ -432,65 +579,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // 3. Render Pending Requests Table
-            const pendingTbody = document.getElementById('pending-tbody');
-            if (pendingTbody) {
-                if (pending.length === 0) {
-                    pendingTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-secondary); padding:2rem;">No pending requests found. All submitted requests have been processed.</td></tr>`;
-                } else {
-                    pendingTbody.innerHTML = pending.map(b => `
-                        <tr>
-                            <td><strong>${b.id}</strong></td>
-                            <td>${b.lab}</td>
-                            <td>${b.date}</td>
-                            <td>${b.time}</td>
-                            <td>${b.purpose || 'Session'}</td>
-                            <td>${getStatusBadge(b.status)}</td>
-                            <td><button onclick="checkStatus('${b.id}')" class="btn-primary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">Track Status</button></td>
-                        </tr>
-                    `).join('');
-                }
-            }
+            // 3. Render Combined Bookings Table
+            renderCombinedFacultyBookingsTable();
 
-            // 4. Render Approved Bookings Table
-            const approvedTbody = document.getElementById('approved-tbody');
-            if (approvedTbody) {
-                if (approved.length === 0) {
-                    approvedTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-secondary); padding:2rem;">No approved bookings yet.</td></tr>`;
-                } else {
-                    approvedTbody.innerHTML = approved.map(b => `
-                        <tr>
-                            <td><strong>${b.id}</strong></td>
-                            <td>${b.lab}</td>
-                            <td>${b.date}</td>
-                            <td>${b.time}</td>
-                            <td>${b.purpose || 'Session'}</td>
-                            <td>${getStatusBadge(b.status)}</td>
-                            <td><button onclick="checkStatus('${b.id}')" class="btn-primary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">View</button></td>
-                        </tr>
-                    `).join('');
-                }
-            }
-
-            // 5. Render History Table
+            // 4. Render History Section Table
             const historyTbody = document.getElementById('history-tbody');
             if (historyTbody) {
-                if (allItems.length === 0) {
-                    historyTbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-secondary); padding:2rem;">No past bookings found in the database.</td></tr>`;
-                } else {
-                    historyTbody.innerHTML = allItems.map(b => `
-                        <tr>
-                            <td><strong>${b.id}</strong></td>
-                            <td>${b.lab}</td>
-                            <td>${b.date}</td>
-                            <td>${b.time}</td>
-                            <td>${b.purpose || 'Session'}</td>
-                            <td style="font-size:0.8rem; color:var(--text-secondary);">${b.submitted || b.submittedAt || 'Recently'}</td>
-                            <td>${getStatusBadge(b.status)}</td>
-                            <td><button onclick="checkStatus('${b.id}')" class="btn-primary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">Details</button></td>
-                        </tr>
-                    `).join('');
-                }
+                historyTbody.innerHTML = allItems.length ? allItems.map(b => `
+                    <tr>
+                        <td><strong>${b.id}</strong></td>
+                        <td>${b.lab}</td>
+                        <td>${b.date}</td>
+                        <td>${b.time}</td>
+                        <td>${b.purpose || 'Class Practical'}</td>
+                        <td style="font-size:0.8rem; color:var(--text-secondary);">${b.submitted || b.submittedAt || 'Recently'}</td>
+                        <td>${getStatusBadge(b.status)}</td>
+                        <td><button onclick="checkStatus('${b.id}')" class="btn-primary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">Details</button></td>
+                    </tr>
+                `).join('') : `<tr><td colspan="8" style="text-align:center; color:var(--text-secondary); padding:2rem;">No past bookings found in the database.</td></tr>`;
             }
 
         } catch (error) {
@@ -498,7 +604,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- Notifications Handling ---
+    // =========================================================
+    // NOTIFICATIONS HANDLING
+    // =========================================================
     const notifBellBtn = document.getElementById('notif-bell-btn');
     const notifModal = document.getElementById('notifications-modal');
     const closeNotifBtn = document.getElementById('close-notif-btn');
@@ -555,6 +663,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // =========================================================
+    // STATUS TRACKER
+    // =========================================================
     window.checkStatus = async (reqId) => {
         switchSection('my-bookings');
         const detailsContainer = document.getElementById('status-details-container');
@@ -614,7 +725,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Logout
+    // =========================================================
+    // LOGOUT
+    // =========================================================
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', (e) => {
@@ -628,7 +741,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Initialize Page
+    // =========================================================
+    // INITIAL LOAD & LIVE POLLING
+    // =========================================================
     loadAvailableLabs();
     loadBookLabInit();
     loadMyBookings();

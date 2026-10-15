@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const storedUser = sessionStorage.getItem('smartCampusUser');
+    const storedUserId = sessionStorage.getItem('smartCampusUserId');
 
     if (storedUser) {
         const userDisplayElem = document.getElementById('user-display-name');
@@ -38,6 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let scheduleCache = [];
     let requestsCache = [];
     let maintenanceCache = [];
+    let labsCache = [];
 
     // ==========================================================================
     // DOM ELEMENTS
@@ -314,7 +316,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 schedule,
                 pendingRequests,
                 maintenance,
-                notifications
+                notifications,
+                labs
             ] = await Promise.all([
 
                 API.getLabAssistantStats
@@ -339,6 +342,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 API.getNotifications
                     ? API.getNotifications()
+                    : [],
+
+                API.getLabs
+                    ? API.getLabs()
                     : []
 
             ]);
@@ -357,6 +364,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             maintenanceCache = Array.isArray(maintenance)
                 ? maintenance
+                : [];
+
+            labsCache = Array.isArray(labs)
+                ? labs
                 : [];
 
             // ==========================================================================
@@ -436,11 +447,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (currentSection === 'maintenance') {
                 renderMaintenanceSections();
             }
-
-            // Modal resources
-            populateModalResourceOptions(
-                resourcesCache
-            );
 
         } catch (error) {
 
@@ -809,11 +815,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             filtered
                 .map(res => {
 
-                    const statusClass =
-                        getStatusClass(res.status);
+                    const isMnt = String(res.status || '').toLowerCase() === 'maintenance' || String(res.status || '').toLowerCase() === 'out of service';
+                    const statusClass = getStatusClass(res.status);
+                    const rowStyle = isMnt ? 'style="background-color: #fff1f2;"' : '';
+                    const badgeStyle = isMnt ? 'style="background:#fee2e2; color:#b91c1c; font-weight:600;"' : '';
 
                     return `
-                        <tr>
+                        <tr ${rowStyle}>
 
                             <td>
 
@@ -846,7 +854,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <span class="
                                     status-badge
                                     ${statusClass}
-                                ">
+                                " ${badgeStyle}>
                                     ${res.status || 'Unknown'}
                                 </span>
 
@@ -1866,159 +1874,188 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
     // ==========================================================================
-    // REPORT ISSUE MODAL
+    // REPORT ISSUE MODAL (CASCADING LAB -> RESOURCE SELECTION)
     // ==========================================================================
 
-    function populateModalResourceOptions(resources) {
+    function populateModalLabOptions(labs, prefillLab = '') {
+        const modalLabSelect = document.getElementById('modal-lab');
+        if (!modalLabSelect) return;
 
-        if (!modalResourceSelect) return;
+        const currentSelection = prefillLab || modalLabSelect.value || '';
 
-        const currentVal =
-            modalResourceSelect.value;
-
-        modalResourceSelect.innerHTML = `
-            <option
-                value=""
-                disabled
-                ${!currentVal ? 'selected' : ''}
-            >
-                Select Resource ID
+        modalLabSelect.innerHTML = `
+            <option value="" disabled ${!currentSelection ? 'selected' : ''}>
+                -- Select Lab --
             </option>
         `;
 
-        resources.forEach(res => {
+        const uniqueLabs = [];
+        (labs || []).forEach(l => {
+            const name = l.name || l.lab || l.labName;
+            if (name && !uniqueLabs.some(u => u.name === name)) {
+                uniqueLabs.push({ id: l.id || l.labId, name: name, room: l.roomNumber || l.room || '' });
+            }
+        });
 
-            const opt =
-                document.createElement('option');
+        if (uniqueLabs.length === 0 && resourcesCache && resourcesCache.length > 0) {
+            resourcesCache.forEach(r => {
+                if (r.lab && !uniqueLabs.some(u => u.name === r.lab)) {
+                    uniqueLabs.push({ id: r.labId, name: r.lab, room: '' });
+                }
+            });
+        }
 
+        uniqueLabs.forEach(lab => {
+            const opt = document.createElement('option');
+            opt.value = lab.name;
+            opt.dataset.labId = lab.id;
+            opt.textContent = lab.room ? `${lab.name} (${lab.room})` : lab.name;
+            if (currentSelection && String(lab.name).toLowerCase() === String(currentSelection).toLowerCase()) {
+                opt.selected = true;
+            }
+            modalLabSelect.appendChild(opt);
+        });
+
+        if (currentSelection) {
+            modalLabSelect.value = currentSelection;
+        }
+    }
+
+    function populateModalResourceOptionsForLab(selectedLabName, prefillResourceId = '') {
+        if (!modalResourceSelect) return;
+
+        if (!selectedLabName) {
+            modalResourceSelect.innerHTML = `<option value="" disabled selected>-- Please select a Lab first --</option>`;
+            modalResourceSelect.disabled = true;
+            return;
+        }
+
+        const filtered = (resourcesCache || []).filter(r => 
+            String(r.lab || '').toLowerCase() === String(selectedLabName).toLowerCase()
+        );
+
+        // Sort PCs numerically
+        filtered.sort((a, b) => 
+            String(a.id || '').localeCompare(String(b.id || ''), undefined, { numeric: true, sensitivity: 'base' })
+        );
+
+        modalResourceSelect.innerHTML = `
+            <option value="ALL" ${!prefillResourceId || prefillResourceId === 'ALL' ? 'selected' : ''}>
+                Entire Lab (General / Lab-wide issue)
+            </option>
+        `;
+
+        filtered.forEach(res => {
+            const opt = document.createElement('option');
             opt.value = res.id;
-
-            opt.dataset.lab =
-                res.lab || '';
-
-            opt.textContent =
-                `${res.id} - ${res.lab || 'N/A'} (${res.type || 'Equipment'}) [${res.status || 'Unknown'}]`;
-
+            opt.dataset.lab = res.lab || '';
+            opt.textContent = `${res.id} - ${res.name || res.id} [${res.status || 'Available'}]`;
+            if (prefillResourceId && String(res.id).toLowerCase() === String(prefillResourceId).toLowerCase()) {
+                opt.selected = true;
+            }
             modalResourceSelect.appendChild(opt);
         });
 
-        if (currentVal) {
-            modalResourceSelect.value =
-                currentVal;
-        }
+        modalResourceSelect.disabled = false;
     }
 
-    function openReportModal(
+    async function openReportModal(
         prefillResourceId = '',
         prefillLab = ''
     ) {
-
         if (!reportModal) return;
 
-        if (resourcesCache && resourcesCache.length > 0) {
-            populateModalResourceOptions(resourcesCache);
-        }
-
-        reportModal.classList.add(
-            'modal-open'
-        );
-
-        if (
-            prefillResourceId &&
-            modalResourceSelect
-        ) {
-
-            modalResourceSelect.value =
-                prefillResourceId;
-
-            if (modalLabInput) {
-                modalLabInput.value =
-                    prefillLab;
-            }
-
-        } else if (
-            modalResourceSelect &&
-            modalResourceSelect.selectedIndex > 0
-        ) {
-
-            const selectedOpt =
-                modalResourceSelect.options[
-                    modalResourceSelect.selectedIndex
-                ];
-
-            if (modalLabInput) {
-                modalLabInput.value =
-                    selectedOpt.dataset.lab || '';
+        if (!labsCache || labsCache.length === 0) {
+            try {
+                if (window.API && typeof API.getLabs === 'function') {
+                    const fetchedLabs = await API.getLabs();
+                    labsCache = Array.isArray(fetchedLabs) ? fetchedLabs : [];
+                }
+            } catch (e) {
+                console.warn('Could not fetch labs for report modal:', e);
             }
         }
+
+        if (!resourcesCache || resourcesCache.length === 0) {
+            try {
+                if (window.API && typeof API.getResources === 'function') {
+                    const fetchedRes = await API.getResources('all');
+                    resourcesCache = Array.isArray(fetchedRes) ? fetchedRes : [];
+                }
+            } catch (e) {
+                console.warn('Could not fetch resources for report modal:', e);
+            }
+        }
+
+        const modalLabSelect = document.getElementById('modal-lab');
+        populateModalLabOptions(labsCache || [], prefillLab);
+
+        if (prefillLab) {
+            if (modalLabSelect) modalLabSelect.value = prefillLab;
+            populateModalResourceOptionsForLab(prefillLab, prefillResourceId);
+        } else if (prefillResourceId) {
+            const resObj = (resourcesCache || []).find(r => String(r.id).toLowerCase() === String(prefillResourceId).toLowerCase());
+            const labName = resObj ? resObj.lab : '';
+            if (modalLabSelect && labName) modalLabSelect.value = labName;
+            populateModalResourceOptionsForLab(labName, prefillResourceId);
+        } else {
+            if (modalLabSelect) {
+                modalLabSelect.value = '';
+            }
+            if (modalResourceSelect) {
+                modalResourceSelect.innerHTML = `<option value="" disabled selected>-- Please select a Lab first --</option>`;
+                modalResourceSelect.disabled = true;
+            }
+        }
+
+        reportModal.classList.add('modal-open');
     }
 
     function closeReportModal() {
-
         if (!reportModal) return;
 
-        reportModal.classList.remove(
-            'modal-open'
-        );
+        reportModal.classList.remove('modal-open');
 
         if (reportForm) {
             reportForm.reset();
         }
 
-        if (modalLabInput) {
-            modalLabInput.value = '';
+        const modalLabSelect = document.getElementById('modal-lab');
+        if (modalLabSelect) {
+            modalLabSelect.value = '';
+        }
+        if (modalResourceSelect) {
+            modalResourceSelect.innerHTML = `<option value="" disabled selected>-- Please select a Lab first --</option>`;
+            modalResourceSelect.disabled = true;
         }
     }
 
-    if (openReportModalBtn) {
+    window.openReportModal = openReportModal;
+    window.closeReportModal = closeReportModal;
+    window.handleQuickReport = (resId, labName) => openReportModal(resId, labName);
 
-        openReportModalBtn.addEventListener(
-            'click',
-            () => openReportModal()
-        );
+    if (openReportModalBtn) {
+        openReportModalBtn.addEventListener('click', () => openReportModal());
     }
 
     if (closeReportModalBtn) {
-
-        closeReportModalBtn.addEventListener(
-            'click',
-            closeReportModal
-        );
+        closeReportModalBtn.addEventListener('click', closeReportModal);
     }
 
     if (cancelReportModalBtn) {
-
-        cancelReportModalBtn.addEventListener(
-            'click',
-            closeReportModal
-        );
+        cancelReportModalBtn.addEventListener('click', closeReportModal);
     }
 
     // ==========================================================================
-    // AUTO-FILL LAB
+    // CASCADING LAB CHANGE LISTENER
     // ==========================================================================
 
-    if (modalResourceSelect) {
-
-        modalResourceSelect.addEventListener(
-            'change',
-            () => {
-
-                const selectedOpt =
-                    modalResourceSelect.options[
-                        modalResourceSelect.selectedIndex
-                    ];
-
-                if (
-                    modalLabInput &&
-                    selectedOpt
-                ) {
-
-                    modalLabInput.value =
-                        selectedOpt.dataset.lab || '';
-                }
-            }
-        );
+    const modalLabSelectEl = document.getElementById('modal-lab');
+    if (modalLabSelectEl) {
+        modalLabSelectEl.addEventListener('change', (e) => {
+            const selectedLab = e.target.value;
+            populateModalResourceOptionsForLab(selectedLab, '');
+        });
     }
 
     // ==========================================================================
@@ -2026,174 +2063,74 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================================================
 
     if (reportForm) {
+        reportForm.addEventListener('submit', async e => {
+            e.preventDefault();
 
-        reportForm.addEventListener(
-            'submit',
-            async e => {
+            const lab = document.getElementById('modal-lab')?.value || '';
+            const resourceId = modalResourceSelect?.value || 'ALL';
+            const issueType = document.getElementById('modal-issue-type')?.value || 'Hardware';
+            const priority = document.getElementById('modal-priority')?.value || 'Medium';
+            const description = document.getElementById('modal-description')?.value.trim() || '';
 
-                e.preventDefault();
+            if (!lab) {
+                showToast("Please select a laboratory.", "warning");
+                const modalLabEl = document.getElementById('modal-lab');
+                if (modalLabEl) modalLabEl.focus();
+                return;
+            }
 
-                const resourceId =
-                    modalResourceSelect?.value || '';
+            if (!description) {
+                showToast("Please describe the problem.", "warning");
+                const descEl = document.getElementById('modal-description');
+                if (descEl) descEl.focus();
+                return;
+            }
 
-                const lab =
-                    modalLabInput?.value || '';
+            const submitBtn = document.getElementById('submit-issue-btn');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Submitting...';
+            }
 
-                const issueType =
-                    document.getElementById(
-                        'modal-issue-type'
-                    )?.value || '';
-
-                const priority =
-                    document.getElementById(
-                        'modal-priority'
-                    )?.value || '';
-
-                const description =
-                    document.getElementById(
-                        'modal-description'
-                    )?.value
-                        .trim() || '';
-
-                if (
-                    !resourceId ||
-                    !issueType ||
-                    !description
-                ) {
-
-                    showToast(
-                        "Please fill in all required fields.",
-                        "warning"
-                    );
-
-                    return;
+            try {
+                if (!window.API || typeof API.reportMaintenanceIssue !== 'function') {
+                    throw new Error("Maintenance reporting API is unavailable.");
                 }
 
-                // CHANGED:
-                // Check both Reserved and Occupied.
-                const targetRes =
-                    resourcesCache.find(
-                        r =>
-                            String(r.id).toLowerCase() ===
-                            String(resourceId).toLowerCase()
-                    );
+                const result = await API.reportMaintenanceIssue({
+                    userId: storedUserId || undefined,
+                    resourceId: resourceId === 'ALL' ? undefined : resourceId,
+                    lab: lab,
+                    issueType: issueType,
+                    description: description,
+                    priority: priority
+                });
 
-                const resourceStatus =
-                    String(targetRes?.status || '')
-                        .toLowerCase();
-
-                if (
-                    resourceStatus === 'reserved' ||
-                    resourceStatus === 'occupied'
-                ) {
-
-                    showToast(
-                        "Note: Resource is currently reserved/occupied by the scheduling system.",
-                        "warning"
-                    );
+                if (!result || result.success === false) {
+                    throw new Error(result?.message || "Unable to report maintenance issue.");
                 }
 
-                const submitBtn =
-                    document.getElementById(
-                        'submit-issue-btn'
-                    );
+                showToast(result.message || "Maintenance issue reported successfully.", "success");
 
+                if (result.resourceStatusMessage) {
+                    setTimeout(() => {
+                        showToast(result.resourceStatusMessage, "info");
+                    }, 1200);
+                }
+
+                closeReportModal();
+                await refreshDashboard();
+
+            } catch (err) {
+                console.error('Error reporting maintenance issue:', err);
+                showToast(err.message || "Error submitting maintenance report.", "error");
+            } finally {
                 if (submitBtn) {
-
-                    submitBtn.disabled = true;
-
-                    submitBtn.textContent =
-                        'Submitting...';
-                }
-
-                try {
-
-                    // CHANGED:
-                    // Require the shared backend API.
-                    if (
-                        !window.API ||
-                        typeof API.reportMaintenanceIssue !==
-                        'function'
-                    ) {
-
-                        throw new Error(
-                            "Maintenance reporting API is unavailable."
-                        );
-                    }
-
-                    const result =
-                        await API.reportMaintenanceIssue({
-                            resourceId,
-                            lab,
-                            issueType,
-                            description,
-                            priority
-                        });
-
-                    // CHANGED:
-                    // Do not close the modal if backend rejected it.
-                    if (
-                        !result ||
-                        result.success === false
-                    ) {
-
-                        throw new Error(
-                            result?.message ||
-                            "Unable to report maintenance issue."
-                        );
-                    }
-
-                    showToast(
-                        result.message ||
-                        "Maintenance issue reported successfully.",
-                        "success"
-                    );
-
-                    if (
-                        result.resourceStatusMessage
-                    ) {
-
-                        setTimeout(() => {
-
-                            showToast(
-                                result.resourceStatusMessage,
-                                "info"
-                            );
-
-                        }, 1200);
-                    }
-
-                    closeReportModal();
-
-                    // CHANGED:
-                    // Reload maintenance/resources immediately.
-                    await refreshDashboard();
-
-                } catch (err) {
-
-                    console.error(
-                        'Error reporting maintenance issue:',
-                        err
-                    );
-
-                    showToast(
-                        err.message ||
-                        "Error submitting maintenance report.",
-                        "error"
-                    );
-
-                } finally {
-
-                    if (submitBtn) {
-
-                        submitBtn.disabled = false;
-
-                        submitBtn.textContent =
-                            'SUBMIT ISSUE';
-                    }
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'SUBMIT ISSUE';
                 }
             }
-        );
+        });
     }
 
     // ==========================================================================

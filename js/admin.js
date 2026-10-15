@@ -103,10 +103,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const toast = document.createElement('div');
         toast.className = `admin-toast ${type}`;
         
-        let icon = 'â„¹ï¸';
-        if (type === 'success') icon = 'âœ…';
-        if (type === 'warning') icon = 'âš ï¸';
-        if (type === 'error') icon = 'âŒ';
+        let icon = 'ℹ️';
+        if (type === 'success') icon = '✅';
+        if (type === 'warning') icon = '⚠️';
+        if (type === 'error') icon = '❌';
 
         toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
         container.appendChild(toast);
@@ -252,16 +252,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             cachedReports = reports;
 
             // Update Badges in Sidebar
-            const activeMnt = maintenance.filter(m => m.status === 'Under Maintenance').length;
+            const activeLabMnt = labs.filter(l => String(l.status || '').toLowerCase() === 'maintenance').length;
+            const activeResMnt = maintenance.filter(m => m.status === 'Under Maintenance').length;
+            const totalActiveMnt = activeLabMnt + activeResMnt;
             const sidebarMntBadge = document.getElementById('sidebar-mnt-badge');
-            if (sidebarMntBadge) sidebarMntBadge.textContent = activeMnt;
+            if (sidebarMntBadge) sidebarMntBadge.textContent = totalActiveMnt;
 
             const pendingBookings = bookings.filter(b => String(b.status || '').toLowerCase() === 'pending').length;
             const sidebarReqBadge = document.getElementById('sidebar-req-badge');
             if (sidebarReqBadge) sidebarReqBadge.textContent = pendingBookings;
 
             const notifCount = document.getElementById('notif-count');
-            if (notifCount) notifCount.textContent = activeMnt + pendingBookings;
+            if (notifCount) notifCount.textContent = totalActiveMnt + pendingBookings;
 
             // Re-render visible section
             renderCurrentSection();
@@ -332,6 +334,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (s === 'approved') return `<span class="status-pill status-available">&#10003; Approved</span>`;
         if (s === 'pending') return `<span class="status-pill status-busy">&#9203; Pending</span>`;
         if (s === 'rejected') return `<span class="status-pill status-busy" style="background:#fee2e2; color:#b91c1c;">&#10007; Rejected</span>`;
+        if (s === 'expired') return `<span class="status-pill status-busy" style="background:#fee2e2; color:#991b1b;">&#9203; Expired</span>`;
         return `<span class="status-pill">${status}</span>`;
     };
 
@@ -389,18 +392,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Filter labs
         let filtered = cachedLabs.filter(lab => {
-            const matchStatus = (labsFilterStatus === 'all') || (lab.status.toLowerCase() === labsFilterStatus.toLowerCase());
+            const isMnt = String(lab.status || '').toLowerCase() === 'maintenance' || (Number(lab.maintenanceResources || 0) >= 5);
+            let matchStatus = true;
+            if (labsFilterStatus === 'available') {
+                matchStatus = !isMnt;
+            } else if (labsFilterStatus === 'maintenance') {
+                matchStatus = isMnt;
+            } else if (labsFilterStatus !== 'all') {
+                matchStatus = (String(lab.status || '').toLowerCase() === labsFilterStatus.toLowerCase());
+            }
             const query = labsSearchQuery.toLowerCase().trim();
             const matchQuery = !query || 
-                lab.id.toLowerCase().includes(query) || 
-                lab.name.toLowerCase().includes(query) || 
-                lab.location.toLowerCase().includes(query);
+                String(lab.id).toLowerCase().includes(query) || 
+                String(lab.name).toLowerCase().includes(query) || 
+                String(lab.location).toLowerCase().includes(query);
             return matchStatus && matchQuery;
         });
 
         // Render Table Rows
         tbody.innerHTML = filtered.length ? filtered.map(lab => {
-            const isMnt = lab.status === 'Maintenance';
+            const isMnt = lab.status === 'Maintenance' || (Number(lab.maintenanceResources || 0) >= 5);
             const isLocked = lab.status === 'Busy' || lab.status === 'Faculty Reserved' || lab.status === 'Full';
             
             let actionHtml = '';
@@ -418,7 +429,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <td>${lab.name}</td>
                     <td style="color: #64748b;">${lab.location}</td>
                     <td>${lab.capacity} PCs</td>
-                    <td>${getStatusPill(lab.status)}</td>
+                    <td>${getStatusPill(isMnt ? 'Maintenance' : lab.status)}</td>
                     <td>${lab.totalResources || lab.capacity}</td>
                     <td style="display: flex; gap: 0.4rem;">
                         <button class="btn-admin btn-admin-secondary btn-admin-sm" onclick="showLabDetails('${lab.id}')">View</button>
@@ -430,19 +441,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Render Cards
         cardGrid.innerHTML = filtered.length ? filtered.map(lab => {
-            const isMnt = lab.status === 'Maintenance';
+            const isMnt = lab.status === 'Maintenance' || (Number(lab.maintenanceResources || 0) >= 5);
             return `
                 <div class="lab-item-card">
                     <div>
                         <div class="lab-card-top">
                             <span class="lab-card-id">${lab.id}</span>
-                            ${getStatusPill(lab.status)}
+                            ${getStatusPill(isMnt ? 'Maintenance' : lab.status)}
                         </div>
                         <div class="lab-card-name">${lab.name}</div>
                         <div class="lab-meta-list">
-                            <span>ðŸ“ Location: ${lab.location}</span>
-                            <span>ðŸ’» Capacity: ${lab.capacity} Workstations</span>
-                            <span>ðŸ‘¨â€ðŸ« In-charge: ${lab.incharge || 'Dept Faculty'}</span>
+                            <span>📍 Location: ${lab.location}</span>
+                            <span>💻 Capacity: ${lab.capacity} Workstations</span>
+                            <span>👤 In-charge: ${lab.incharge || 'Dept Faculty'}</span>
                         </div>
                     </div>
                     <div class="lab-card-footer">
@@ -477,7 +488,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         tbody.innerHTML = filtered.length ? filtered.map(res => {
-            const isMnt = res.status === 'Maintenance';
+            const isMnt = String(res.status || '').toLowerCase() === 'maintenance' || String(res.status || '').toLowerCase() === 'out of service';
             const isReserved = res.status === 'Reserved' || res.status === 'Occupied';
 
             let actionBtn = '';
@@ -489,12 +500,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 actionBtn = `<button class="btn-admin btn-admin-danger btn-admin-sm" onclick="handleResourceStatusPrompt('${res.id}', 'Maintenance', false)">Mark Maintenance</button>`;
             }
 
+            const rowStyle = isMnt ? 'style="background-color: #fff1f2;"' : '';
+            const statusBadgeHtml = isMnt
+                ? `<span class="status-pill status-maintenance" style="background:#fee2e2; color:#b91c1c; font-weight:600;">&#9874; Maintenance</span>`
+                : getStatusPill(res.status);
+
             return `
-                <tr>
+                <tr ${rowStyle}>
                     <td><strong>${res.id}</strong></td>
                     <td><span class="role-pill role-student" style="background:#f1f5f9; color:#334155;">${res.type}</span></td>
                     <td>${res.lab}</td>
-                    <td>${getStatusPill(res.status)}</td>
+                    <td>${statusBadgeHtml}</td>
                     <td style="font-size: 0.8rem; color: #475569;">${res.specs}</td>
                     <td style="font-size: 0.78rem; color: #64748b;">${res.lastUpdated}</td>
                     <td style="white-space: nowrap;">
@@ -512,7 +528,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tbody = document.getElementById('maintenance-tbody');
         if (!tbody) return;
 
-        let filtered = cachedMaintenance.filter(ticket => {
+        // Collect both lab maintenance records and resource maintenance tickets
+        const labRecords = cachedLabs
+            .filter(l => String(l.status || '').toLowerCase() === 'maintenance' || (Number(l.maintenanceResources || 0) >= 5))
+            .map(l => ({
+                id: `LAB-MNT-${l.id}`,
+                targetId: l.name || `Lab ${l.id}`,
+                type: 'Laboratory',
+                lab: l.name || `Lab ${l.id}`,
+                issue: l.maintenanceReason || 'Whole Laboratory scheduled for maintenance.',
+                priority: 'High',
+                reportedAt: 'Active',
+                assignedTo: l.incharge || 'Lab In-Charge',
+                status: 'Under Maintenance',
+                isLab: true,
+                rawLabId: l.id
+            }));
+
+        const combinedList = [...labRecords, ...cachedMaintenance];
+
+        let filtered = combinedList.filter(ticket => {
             let matchTab = true;
             if (mntTabFilter === 'active') matchTab = (ticket.status === 'Under Maintenance');
             if (mntTabFilter === 'completed') matchTab = (ticket.status === 'Completed');
@@ -545,7 +580,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <td>${getStatusPill(ticket.status)}</td>
                     <td style="white-space: nowrap;">
                         <button class="btn-admin btn-admin-secondary btn-admin-sm" onclick="showTicketDetails('${ticket.id}')">View</button>
-                        ${isActive ? `<button class="btn-admin btn-admin-success btn-admin-sm" onclick="promptResolveTicket('${ticket.id}')">Mark Completed</button>` : ''}
+                        ${isActive ? `<button class="btn-admin btn-admin-success btn-admin-sm" onclick="promptResolveTicket('${ticket.id}')">Resolve / Complete</button>` : ''}
                     </td>
                 </tr>
             `;
@@ -573,7 +608,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         tbody.innerHTML = filtered.length ? filtered.map(req => {
             const isFaculty = req.role === 'Faculty';
             const priorityBadge = isFaculty ? 
-                `<span class="priority-pill priority-high">âš¡ HIGH PRIORITY</span>` : 
+                `<span class="priority-pill priority-high">HIGH PRIORITY</span>` : 
                 `<span class="priority-pill priority-normal">NORMAL</span>`;
 
             const roleBadge = isFaculty ? 
@@ -842,7 +877,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (targetStatus === 'Maintenance') {
             titleEl.textContent = `Set ${labId} into Maintenance`;
             descEl.innerHTML = hasConflictWarning ? 
-                `âš ï¸ <strong>Active Booking Alert:</strong> ${labId} has active bookings scheduled. Putting it in Maintenance will notify Team A to reroute pending allocations.<br><br>Are you sure you want to put <strong>${labId}</strong> into maintenance?` : 
+                `⚠️ <strong>Active Booking Alert:</strong> ${labId} has active bookings scheduled. Putting it in Maintenance will notify Team A to reroute pending allocations.<br><br>Are you sure you want to put <strong>${labId}</strong> into maintenance?` : 
                 `Are you sure you want to put <strong>${labId}</strong> into maintenance mode? Regular bookings will be suspended.`;
             reasonBox.style.display = 'block';
         } else {
@@ -991,18 +1026,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             const notes = document.getElementById('resolve-ticket-notes').value.trim() || 'Serviced and verified by technician';
             if (ticketId) {
                 try {
-                    // CHANGED: Use the same maintenance completion API as Lab Assistant.
-                    const result = await API.completeMaintenance(ticketId, notes);
-
-                    // CHANGED: Respect explicit backend failure responses.
-                    if (result && result.success === false) {
-                        throw new Error(result.message || 'Unable to complete maintenance.');
+                    if (ticketId.startsWith('LAB-MNT-')) {
+                        const labId = parseInt(ticketId.replace('LAB-MNT-', ''), 10);
+                        const result = await API.updateLabStatus(labId, 'Available', notes);
+                        if (result && result.success === false) {
+                            throw new Error(result.message || 'Unable to restore lab.');
+                        }
+                        closeModal('resolve-ticket-modal');
+                        showToast(`Laboratory restored to Available!`, 'success');
+                    } else {
+                        const result = await API.completeMaintenance(ticketId, notes);
+                        if (result && result.success === false) {
+                            throw new Error(result.message || 'Unable to complete maintenance.');
+                        }
+                        closeModal('resolve-ticket-modal');
+                        showToast(`Ticket ${ticketId} resolved & completed!`, 'success');
                     }
 
-                    closeModal('resolve-ticket-modal');
-                    showToast(`Ticket ${ticketId} resolved & completed!`, 'success');
-
-                    // CHANGED: Reload shared SQL Server state immediately.
+                    // Reload shared SQL Server state immediately
                     await refreshDashboardData();
                 } catch (err) {
                     console.error('Error completing maintenance:', err);
@@ -1013,14 +1054,96 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Open Log Ticket Modal Triggers
+    const populateAdminTicketLabOptions = () => {
+        const labSelect = document.getElementById('new-ticket-lab');
+        const targetSelect = document.getElementById('new-ticket-target');
+        if (!labSelect || !targetSelect) return;
+
+        labSelect.innerHTML = `<option value="" disabled selected>Select Laboratory</option>`;
+        targetSelect.innerHTML = `<option value="" disabled selected>Please select a Lab first</option>`;
+        targetSelect.disabled = true;
+
+        const uniqueLabs = [];
+        cachedLabs.forEach(lab => {
+            if (!uniqueLabs.some(l => l.name === lab.name)) {
+                uniqueLabs.push(lab);
+            }
+        });
+
+        uniqueLabs.forEach(lab => {
+            const opt = document.createElement('option');
+            opt.value = lab.name;
+            opt.dataset.labId = lab.id;
+            opt.textContent = `${lab.name} (${lab.location || 'Campus'})`;
+            labSelect.appendChild(opt);
+        });
+    };
+
+    const handleAdminTicketLabChange = () => {
+        const type = document.getElementById('new-ticket-type')?.value || 'Resource';
+        const labSelect = document.getElementById('new-ticket-lab');
+        const targetSelect = document.getElementById('new-ticket-target');
+        const targetLabel = document.getElementById('new-ticket-target-label');
+        if (!labSelect || !targetSelect) return;
+
+        const selectedLab = labSelect.value;
+        if (!selectedLab) {
+            targetSelect.innerHTML = `<option value="" disabled selected>Please select a Lab first</option>`;
+            targetSelect.disabled = true;
+            return;
+        }
+
+        if (type === 'Lab') {
+            if (targetLabel) targetLabel.textContent = 'Target Laboratory *';
+            targetSelect.innerHTML = `<option value="${selectedLab}" selected>${selectedLab} (Entire Lab)</option>`;
+            targetSelect.disabled = false;
+            return;
+        }
+
+        if (targetLabel) targetLabel.textContent = 'Select Resource / PC ID *';
+        const filteredPCs = cachedResources.filter(r => 
+            String(r.lab || '').toLowerCase() === selectedLab.toLowerCase() ||
+            String(r.labId || '') === String(labSelect.options[labSelect.selectedIndex]?.dataset?.labId || '')
+        );
+
+        // Sort PCs numerically
+        filteredPCs.sort((a, b) =>
+            String(a.id || '').localeCompare(String(b.id || ''), undefined, { numeric: true, sensitivity: 'base' })
+        );
+
+        targetSelect.innerHTML = `<option value="" disabled selected>Select Resource ID (${filteredPCs.length} PCs available)</option>`;
+        filteredPCs.forEach(pc => {
+            const opt = document.createElement('option');
+            opt.value = pc.id;
+            opt.textContent = `${pc.id} - ${pc.name || pc.id} [${pc.status}]`;
+            targetSelect.appendChild(opt);
+        });
+        targetSelect.disabled = false;
+    };
+
+    const labSelectEl = document.getElementById('new-ticket-lab');
+    if (labSelectEl) {
+        labSelectEl.addEventListener('change', handleAdminTicketLabChange);
+    }
+
+    const typeSelectEl = document.getElementById('new-ticket-type');
+    if (typeSelectEl) {
+        typeSelectEl.addEventListener('change', handleAdminTicketLabChange);
+    }
+
+    const openAdminTicketModal = () => {
+        populateAdminTicketLabOptions();
+        openModal('create-ticket-modal');
+    };
+
     const btnCreateTicketModal = document.getElementById('btn-create-ticket-modal');
     if (btnCreateTicketModal) {
-        btnCreateTicketModal.addEventListener('click', () => openModal('create-ticket-modal'));
+        btnCreateTicketModal.addEventListener('click', openAdminTicketModal);
     }
 
     const btnQuickLogTicket = document.getElementById('btn-quick-log-ticket');
     if (btnQuickLogTicket) {
-        btnQuickLogTicket.addEventListener('click', () => openModal('create-ticket-modal'));
+        btnQuickLogTicket.addEventListener('click', openAdminTicketModal);
     }
 
     // Submit New Ticket
@@ -1033,8 +1156,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const issue = document.getElementById('new-ticket-issue').value.trim();
             const priority = document.getElementById('new-ticket-priority').value;
 
-            if (!targetId || !issue) {
-                showToast('Please fill in target ID and issue description', 'warning');
+            if (!lab || !targetId || !issue) {
+                showToast('Please select a Lab, Resource/Target ID, and enter issue description', 'warning');
                 return;
             }
 
@@ -1218,13 +1341,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     window.showTicketDetails = (ticketId) => {
-        const ticket = cachedMaintenance.find(t => t.id === ticketId);
+        let ticket = cachedMaintenance.find(t => t.id === ticketId);
+        if (!ticket && ticketId.startsWith('LAB-MNT-')) {
+            const labId = parseInt(ticketId.replace('LAB-MNT-', ''), 10);
+            const lab = cachedLabs.find(l => l.id === labId);
+            if (lab) {
+                ticket = {
+                    id: ticketId,
+                    targetId: lab.name || `Lab ${lab.id}`,
+                    type: 'Laboratory',
+                    lab: lab.name || `Lab ${lab.id}`,
+                    issue: 'Whole Laboratory scheduled for maintenance. Student and faculty bookings suspended.',
+                    priority: 'High',
+                    reportedBy: 'System Administrator',
+                    reportedAt: 'Active',
+                    assignedTo: lab.incharge || 'Lab In-Charge',
+                    status: 'Under Maintenance'
+                };
+            }
+        }
         if (!ticket) return;
 
         const titleEl = document.getElementById('details-modal-title');
         const bodyEl = document.getElementById('details-modal-body');
 
-        titleEl.textContent = `Maintenance Ticket: ${ticket.id}`;
+        titleEl.textContent = `Maintenance Details: ${ticket.targetId}`;
         bodyEl.innerHTML = `
             <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.9rem;">
                 <div><strong>Ticket ID:</strong> ${ticket.id}</div>
@@ -1348,6 +1489,51 @@ document.addEventListener('DOMContentLoaded', async () => {
         `;
         openModal('details-modal');
     };
+
+    // ==========================================
+    // 10b. ADMIN NOTIFICATIONS HANDLER
+    // ==========================================
+    const notifBtn = document.getElementById('notif-btn');
+    const notifContainer = document.getElementById('admin-notif-list-container');
+
+    const loadAdminNotifications = async () => {
+        try {
+            const notifs = await API.getNotifications();
+            const items = Array.isArray(notifs) ? notifs : (notifs.data || []);
+            const unread = items.filter(n => !n.isRead && String(n.status).toUpperCase() !== 'READ');
+
+            const notifCount = document.getElementById('notif-count');
+            if (notifCount) {
+                notifCount.textContent = unread.length;
+                notifCount.style.display = unread.length > 0 ? 'inline-block' : 'none';
+            }
+
+            if (notifContainer) {
+                if (items.length === 0) {
+                    notifContainer.innerHTML = `<p style="color:#64748b; font-size:0.85rem; text-align:center; padding:1.5rem 0;">No system notifications at this time.</p>`;
+                } else {
+                    notifContainer.innerHTML = items.map(n => `
+                        <div style="padding:0.75rem; border-radius:8px; background:${n.isRead ? '#f8fafc' : '#f0fdf4'}; border:1px solid ${n.isRead ? '#e2e8f0' : '#bbf7d0'}; margin-bottom:0.5rem;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <strong style="color:#0f172a; font-size:0.9rem;">${n.title}</strong>
+                                <span style="font-size:0.75rem; color:#64748b;">${n.time || n.createdAt || ''}</span>
+                            </div>
+                            <p style="margin:0.25rem 0 0; font-size:0.83rem; color:#334155;">${n.message}</p>
+                        </div>
+                    `).join('');
+                }
+            }
+        } catch (err) {
+            console.error('Error loading admin notifications:', err);
+        }
+    };
+
+    if (notifBtn) {
+        notifBtn.addEventListener('click', () => {
+            loadAdminNotifications();
+            openModal('admin-notifications-modal');
+        });
+    }
 
     // ==========================================
     // 11. INITIALIZATION

@@ -9,44 +9,20 @@
 </head>
 <body class="login-page">
     <main class="login-container">
+    <div class="bg-shapes">
+
+        
+    </div>
+    
         <!-- Left Side -->
         <section class="login-left">
             <div class="login-brand">
-                <h1>Smart Campus Lab & Resource Optimizer</h1>
+                <h1><span class="brand-highlight">Smart Campus</span> Lab & Resource Optimizer</h1>
                 <p class="tagline">Smart Scheduling. Efficient Resources. Better Campus.</p>
                 <p class="team-subtitle">Team D – Web Engine</p>
             </div>
-            
-            <div class="illustration-container">
-                <div class="tech-grid-display">
-                    <div class="tech-metric-box">
-                        <div class="tech-metric-label">Operational Labs</div>
-                        <div class="tech-metric-num">12 / 12</div>
-                        <div class="tech-metric-sub">● All Nodes Online</div>
-                    </div>
-                    <div class="tech-metric-box">
-                        <div class="tech-metric-label">Optimization Engine</div>
-                        <div class="tech-metric-num">98.4%</div>
-                        <div class="tech-metric-sub">▲ +4.2% Efficiency</div>
-                    </div>
-                    <div class="tech-metric-box">
-                        <div class="tech-metric-label">Active Workstations</div>
-                        <div class="tech-metric-num">340</div>
-                        <div class="tech-metric-sub">Live Real-time Sync</div>
-                    </div>
-                    <div class="tech-metric-box">
-                        <div class="tech-metric-label">Energy Mode</div>
-                        <div class="tech-metric-num">ECO-PRO</div>
-                        <div class="tech-metric-sub">Smart Auto-Power</div>
-                    </div>
-                </div>
-                <div class="tech-stats-row">
-                    <span class="tech-pill">Team D • Web Engine</span>
-                    <span class="tech-pill">5s Fast Polling</span>
-                    <span class="tech-pill">Role-Based Access</span>
-                </div>
-            </div>
-        </section>
+         </div>
+    </section>
 
         <!-- Right Side -->
         <section class="login-right">
@@ -88,48 +64,50 @@
                             <input type="checkbox" id="remember-me">
                             <span>Remember me</span>
                         </label>
-                        <a href="#" class="forgot-password" id="forgot-password-link">Forgot password?</a>
+                        <a href="#" class="forgot-password">Forgot password?</a>
                     </div>
 
                     <button type="submit" class="btn-primary login-btn">Login</button>
                 </form>
             </div>
-        </section>
+        </section>            
     </main>
 
     <!-- Forgot Password Modal -->
-    <div class="modal-overlay" id="forgot-password-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center; padding:1rem;">
-        <div class="modal-dialog-card" style="background:#18181b; border:1px solid #27272a; border-radius:14px; max-width:420px; width:100%; padding:1.75rem; box-shadow:0 20px 50px rgba(0,0,0,0.7);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                <h3 style="margin:0; color:#f4f4f5; font-size:1.2rem; font-weight:700;">Reset Your Password</h3>
-                <button type="button" id="close-forgot-modal" style="background:none; border:none; color:#a1a1aa; font-size:1.6rem; cursor:pointer; line-height:1;">&times;</button>
-            </div>
-            <p style="color:#a1a1aa; font-size:0.85rem; margin-bottom:1.25rem; line-height:1.4;">
-                Enter your registered Email or Student/Employee ID and choose a new password.
-            </p>
-
-            <div id="forgot-error" class="alert alert-error" style="display:none; margin-bottom:1rem; padding:0.6rem 0.8rem; font-size:0.85rem; border-radius:6px;"></div>
-            <div id="forgot-success" class="alert alert-success" style="display:none; margin-bottom:1rem; padding:0.6rem 0.8rem; font-size:0.85rem; background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; border-radius:6px;"></div>
+    <div id="forgot-password-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9999; justify-content: center; align-items: center; padding: 1rem; backdrop-filter: blur(4px);">
+        <div style="background: #ffffff; width: 100%; max-width: 450px; border-radius: 16px; padding: 2.25rem; box-shadow: 0 20px 40px rgba(0,0,0,0.3); position: relative; color: #0f172a; border: 1px solid rgba(0,0,0,0.08);">
+            <button type="button" id="close-forgot-modal" style="position: absolute; top: 1.25rem; right: 1.25rem; background: transparent; border: none; font-size: 1.6rem; cursor: pointer; color: #64748b; line-height: 1; padding: 0.25rem;" title="Close">&times;</button>
+            <h3 style="margin: 0 0 0.5rem; font-size: 1.45rem; font-weight: 700; color: #0f172a; font-family: 'Playfair Display', serif;">Reset Password</h3>
+            <p style="margin: 0 0 1.5rem; font-size: 0.9rem; color: #64748b; line-height: 1.4;">Enter your username or email address and create a new password for your account.</p>
+            
+            <div id="forgot-error" class="alert alert-error" style="display: none; margin-bottom: 1.25rem; padding: 0.75rem 1rem; border-radius: 8px; background: #fef2f2; color: #b91c1c; font-size: 0.875rem; border: 1px solid #fecaca; font-weight: 500;"></div>
+            <div id="forgot-success" class="alert alert-success" style="display: none; margin-bottom: 1.25rem; padding: 0.75rem 1rem; border-radius: 8px; background: #f0fdf4; color: #15803d; font-size: 0.875rem; border: 1px solid #bbf7d0; font-weight: 600;"></div>
 
             <form id="forgot-password-form">
-                <div class="form-group" style="margin-bottom:1rem;">
-                    <label for="forgot-email" style="color:#e4e4e7; font-size:0.82rem; font-weight:600; display:block; margin-bottom:0.35rem;">Email or Username / ID</label>
-                    <input type="text" id="forgot-email" placeholder="e.g. atharva.jadhav@rit.edu or CSE004" required style="width:100%; padding:0.65rem 0.85rem; border-radius:8px; border:1px solid #3f3f46; background:#27272a; color:#f4f4f5; font-size:0.9rem; box-sizing:border-box;">
+                <div class="modal-form-group" style="margin-bottom: 1.2rem;">
+                    <label for="forgot-email" style="display: block; font-size: 0.875rem; font-weight: 700; margin-bottom: 0.4rem; color: #0f172a !important;">Username or Email</label>
+                    <input type="text" id="forgot-email" placeholder="e.g. CSE001, FAC001, or name@rit.edu" required style="width: 100%; padding: 0.75rem 1rem; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; color: #0f172a; background: #f8fafc; box-sizing: border-box;">
                 </div>
 
-                <div class="form-group" style="margin-bottom:1rem;">
-                    <label for="forgot-new-password" style="color:#e4e4e7; font-size:0.82rem; font-weight:600; display:block; margin-bottom:0.35rem;">New Password</label>
-                    <input type="password" id="forgot-new-password" placeholder="Enter new password" required minlength="4" style="width:100%; padding:0.65rem 0.85rem; border-radius:8px; border:1px solid #3f3f46; background:#27272a; color:#f4f4f5; font-size:0.9rem; box-sizing:border-box;">
+                <div class="modal-form-group" style="margin-bottom: 1.2rem; position: relative;">
+                    <label for="forgot-new-password" style="display: block; font-size: 0.875rem; font-weight: 700; margin-bottom: 0.4rem; color: #0f172a !important;">New Password</label>
+                    <div style="position: relative;">
+                        <input type="password" id="forgot-new-password" placeholder="Enter new password (min. 4 characters)" required style="width: 100%; padding: 0.75rem 3rem 0.75rem 1rem; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; color: #0f172a; background: #f8fafc; box-sizing: border-box;">
+                        <button type="button" id="toggle-forgot-password-1" style="position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); background: none; border: none; color: #64748b; cursor: pointer; font-size: 0.8rem; font-weight: 600;">Show</button>
+                    </div>
                 </div>
 
-                <div class="form-group" style="margin-bottom:1.5rem;">
-                    <label for="forgot-confirm-password" style="color:#e4e4e7; font-size:0.82rem; font-weight:600; display:block; margin-bottom:0.35rem;">Confirm New Password</label>
-                    <input type="password" id="forgot-confirm-password" placeholder="Re-enter new password" required minlength="4" style="width:100%; padding:0.65rem 0.85rem; border-radius:8px; border:1px solid #3f3f46; background:#27272a; color:#f4f4f5; font-size:0.9rem; box-sizing:border-box;">
+                <div class="modal-form-group" style="margin-bottom: 1.5rem; position: relative;">
+                    <label for="forgot-confirm-password" style="display: block; font-size: 0.875rem; font-weight: 700; margin-bottom: 0.4rem; color: #0f172a !important;">Confirm New Password</label>
+                    <div style="position: relative;">
+                        <input type="password" id="forgot-confirm-password" placeholder="Re-enter your new password" required style="width: 100%; padding: 0.75rem 3rem 0.75rem 1rem; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; color: #0f172a; background: #f8fafc; box-sizing: border-box;">
+                        <button type="button" id="toggle-forgot-password-2" style="position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); background: none; border: none; color: #64748b; cursor: pointer; font-size: 0.8rem; font-weight: 600;">Show</button>
+                    </div>
                 </div>
 
-                <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
-                    <button type="button" id="cancel-forgot-modal" style="padding:0.6rem 1.2rem; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:#d4d4d8; cursor:pointer; font-weight:600;">Cancel</button>
-                    <button type="submit" id="submit-forgot-btn" class="btn-primary" style="padding:0.6rem 1.4rem; border-radius:8px; background:var(--accent-color, #f97316); color:#fff; border:none; cursor:pointer; font-weight:600;">Reset Password</button>
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end; align-items: center;">
+                    <button type="button" id="cancel-forgot-modal" style="padding: 0.7rem 1.3rem; border: 1.5px solid #cbd5e1; background: #f1f5f9; border-radius: 8px; cursor: pointer; font-weight: 600; color: #475569; font-size: 0.9rem; transition: background 0.2s;">Cancel</button>
+                    <button type="submit" id="submit-forgot-btn" class="btn-primary" style="padding: 0.7rem 1.4rem; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem; background-color: #0f766e; color: #ffffff; border: none; transition: background 0.2s;">Reset Password</button>
                 </div>
             </form>
         </div>

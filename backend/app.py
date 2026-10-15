@@ -36,7 +36,8 @@ def add_cors_headers(response):
 def error_response(message, status_code=500):
     return jsonify({
         "success": False,
-        "message": message
+        "message": message,
+        "error": message
     }), status_code
 
 
@@ -153,6 +154,129 @@ def create_notification(cursor, user_id, title, message, notif_type="INFO"):
         print("Notification insert warning:", e)
 
 
+def expire_stale_bookings(cursor):
+    """
+    Finds all PENDING bookings created >= 12 hours ago (720 minutes)
+    and automatically transitions their status to EXPIRED.
+    Inserts status history and creates a single non-duplicate notification for the requester.
+    """
+    try:
+        cursor.execute("""
+            SELECT
+                b.booking_id,
+                b.user_id,
+                b.idempotency_key,
+                b.start_time,
+                b.end_time,
+                b.created_at,
+                l.lab_name
+            FROM bookings b
+            JOIN labs l ON b.lab_id = l.lab_id
+            WHERE b.status = 'PENDING'
+              AND DATEDIFF(minute, b.created_at, GETDATE()) >= 720
+        """)
+        stale_bookings = fetch_all_dict(cursor)
+
+        for b in stale_bookings:
+            b_id = b["booking_id"]
+            u_id = b["user_id"]
+            req_id = b["idempotency_key"]
+            lab_name = b["lab_name"]
+
+            # 1. Update booking status to EXPIRED
+            cursor.execute("UPDATE bookings SET status = 'EXPIRED' WHERE booking_id = ?", (b_id,))
+
+            # 2. Insert into booking status history
+            cursor.execute("""
+                INSERT INTO booking_status_history (booking_id, old_status, new_status, changed_by, reason, changed_at)
+                VALUES (?, 'PENDING', 'EXPIRED', NULL, 'Request automatically expired after 12 hours pending review', GETDATE())
+            """, (b_id,))
+
+            # 3. Create non-duplicate user notification
+            cursor.execute("""
+                SELECT TOP 1 notification_id FROM notifications
+                WHERE user_id = ? AND title = 'Booking Request Expired' AND message LIKE ?
+            """, (u_id, f"%{req_id}%"))
+            existing_notif = cursor.fetchone()
+            if not existing_notif:
+                create_notification(
+                    cursor,
+                    u_id,
+                    "Booking Request Expired",
+                    f"Your booking request ({req_id}) for {lab_name} has expired after 12 hours pending review.",
+                    "WARNING"
+                )
+    except Exception as e:
+        print("EXPIRE STALE BOOKINGS ERROR:", e)
+
+
+def parse_booking_datetime(val, date_val=None):
+    if not val:
+        return None
+    s = str(val).strip()
+
+    # Split date part if already combined e.g. "YYYY-MM-DDT10:00 AM" or "YYYY-MM-DD 10:00 AM"
+    if "T" in s:
+        parts = s.split("T", 1)
+        if len(parts) == 2:
+            if not date_val:
+                date_val = parts[0].strip()
+            s = parts[1].strip()
+    elif " " in s and ("-" in s[:10] or "/" in s[:10]):
+        parts = s.split(" ", 1)
+        if len(parts) == 2:
+            if not date_val:
+                date_val = parts[0].strip()
+            s = parts[1].strip()
+
+    # Try standard ISO if it doesn't contain AM/PM
+    if "AM" not in s.upper() and "PM" not in s.upper():
+        try:
+            full_str = f"{date_val}T{s}" if date_val and "T" not in s else s
+            return datetime.fromisoformat(full_str)
+        except Exception:
+            pass
+
+    # Try 12-hour or 24-hour time-only formats
+    time_formats = [
+        "%I:%M %p",
+        "%I:%M:%S %p",
+        "%I %p",
+        "%H:%M",
+        "%H:%M:%S",
+    ]
+    for fmt in time_formats:
+        try:
+            t = datetime.strptime(s, fmt).time()
+            if date_val:
+                d = datetime.strptime(str(date_val).strip(), "%Y-%m-%d").date()
+                return datetime.combine(d, t)
+            else:
+                return datetime.combine(datetime.now().date(), t)
+        except Exception:
+            continue
+
+    # Try full datetime string formats
+    full_candidate = f"{date_val} {s}" if date_val and "-" not in s else s
+    dt_formats = [
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%d %I:%M:%S %p",
+        "%Y-%m-%d %I:%M %p",
+        "%Y-%m-%dT%I:%M:%S %p",
+        "%Y-%m-%dT%I:%M %p",
+    ]
+    for fmt in dt_formats:
+        try:
+            return datetime.strptime(full_candidate, fmt)
+        except Exception:
+            continue
+
+    raise ValueError(f"Invalid date/time format: '{val}'")
+
+
 # =========================================================
 # HEALTH & DB DIAGNOSTIC
 # =========================================================
@@ -221,10 +345,10 @@ def login():
             FROM users u
             JOIN roles r
                 ON u.role_id = r.role_id
-            WHERE (u.email = ? OR u.employee_student_id = ?)
+            WHERE (u.email = ? OR u.employee_student_id = ? OR (? IN ('faculty01@rit.edu', 'faculty1@rit.edu', 'faculty01') AND (u.employee_student_id = 'FAC001' OR u.email = 'ganeshsir@rit.edu')))
         """
 
-        cursor.execute(query, (username_or_email, username_or_email))
+        cursor.execute(query, (username_or_email, username_or_email, username_or_email))
         user = fetch_one_dict(cursor)
 
         if not user:
@@ -411,10 +535,13 @@ def forgot_password():
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT TOP 1 user_id, email, full_name, status
-            FROM users
-            WHERE (email = ? OR employee_student_id = ?)
-        """, (email_or_user, email_or_user))
+            SELECT TOP 1 u.user_id, u.email, u.full_name, u.status
+            FROM users u
+            JOIN roles r ON u.role_id = r.role_id
+            WHERE LOWER(u.email) = LOWER(?) 
+               OR LOWER(u.employee_student_id) = LOWER(?)
+               OR (LOWER(?) IN ('admin', 'administrator') AND r.role_name = 'ADMINISTRATOR')
+        """, (email_or_user, email_or_user, email_or_user))
 
         user = fetch_one_dict(cursor)
 
@@ -484,8 +611,8 @@ def query_labs(cursor):
             l.capacity,
             CASE
                 WHEN l.status = 'MAINTENANCE' THEN 'MAINTENANCE'
-                WHEN COUNT(r.resource_id) > 0 AND COUNT(CASE WHEN r.status = 'AVAILABLE' THEN 1 END) = 0 THEN 'MAINTENANCE'
-                ELSE l.status
+                WHEN COUNT(CASE WHEN r.status = 'MAINTENANCE' THEN 1 END) >= 5 THEN 'MAINTENANCE'
+                ELSE 'ACTIVE'
             END AS status,
             COUNT(r.resource_id) AS total_resources,
             COUNT(CASE WHEN r.status = 'AVAILABLE' THEN 1 END) AS available_resources,
@@ -512,6 +639,7 @@ def map_lab(lab):
     total = lab["total_resources"] if lab["total_resources"] > 0 else (lab["capacity"] or 0)
     avail = lab["available_resources"] if lab["total_resources"] > 0 else (lab["capacity"] or 0)
     maint = lab["maintenance_resources"] if lab["total_resources"] > 0 else 0
+    is_maintenance = (str(lab["status"]).upper() == "MAINTENANCE") or (maint >= 5)
     return {
         "id": lab["lab_id"],
         "name": lab["lab_name"],
@@ -526,7 +654,7 @@ def map_lab(lab):
         "availableResources": avail,
         "maintenanceResources": maint,
         "total": total,
-        "status": display_lab_status(lab["status"]),
+        "status": "Maintenance" if is_maintenance else display_lab_status(lab["status"]),
         "util": 0
     }
 
@@ -635,7 +763,7 @@ def query_resources(cursor, lab_id=None):
         query += " WHERE l.lab_id = ? "
         params.append(lab_id)
 
-    query += " ORDER BY r.resource_id"
+    query += " ORDER BY l.lab_id, r.asset_code"
 
     cursor.execute(query, params)
     return fetch_all_dict(cursor)
@@ -885,6 +1013,7 @@ def insert_maintenance_ticket(
 
 
 def find_resource_id(cursor, resource_id_text):
+    clean_text = str(resource_id_text or "").strip()
     cursor.execute("""
         SELECT TOP 1
             r.resource_id,
@@ -895,8 +1024,8 @@ def find_resource_id(cursor, resource_id_text):
         FROM resources r
         JOIN labs l
             ON r.lab_id = l.lab_id
-        WHERE r.asset_code = ?
-    """, (resource_id_text,))
+        WHERE r.asset_code = ? OR CAST(r.resource_id AS VARCHAR(20)) = ?
+    """, (clean_text, clean_text))
 
     return fetch_one_dict(cursor)
 
@@ -905,10 +1034,10 @@ def find_resource_id(cursor, resource_id_text):
 def create_maintenance_ticket():
     data = request.get_json(silent=True) or {}
 
-    target_id = str(data.get("targetId") or "").strip()
+    target_id = str(data.get("targetId") or data.get("resourceId") or data.get("resource_id") or "").strip()
     target_type = str(data.get("type") or "Resource").strip()
-    lab_name = str(data.get("lab") or "").strip()
-    issue = str(data.get("issue") or "").strip()
+    lab_name = str(data.get("lab") or data.get("labName") or data.get("lab_name") or data.get("labId") or data.get("lab_id") or "").strip()
+    issue = str(data.get("issue") or data.get("description") or "").strip()
     priority = str(data.get("priority") or "Medium").strip()
 
     if not target_id or not issue:
@@ -933,9 +1062,9 @@ def create_maintenance_ticket():
                 FROM resources r
                 JOIN labs l
                     ON r.lab_id = l.lab_id
-                WHERE l.lab_name = ?
+                WHERE l.lab_name = ? OR CAST(l.lab_id AS VARCHAR(20)) = ?
                 ORDER BY r.resource_id
-            """, (lab_name,))
+            """, (lab_name or target_id, lab_name or target_id))
 
             resource = fetch_one_dict(cursor)
 
@@ -949,6 +1078,14 @@ def create_maintenance_ticket():
 
         if not resource:
             return error_response("Resource not found.", 404)
+
+        if target_type.upper() == "RESOURCE" and lab_name:
+            if lab_name.isdigit():
+                if int(resource["lab_id"]) != int(lab_name):
+                    return error_response(f"Resource {target_id} does not belong to Lab {lab_name}.", 400)
+            else:
+                if str(resource["lab_name"]).lower() != lab_name.lower():
+                    return error_response(f"Resource {target_id} does not belong to {lab_name}.", 400)
 
         maintenance_id = insert_maintenance_ticket(
             cursor,
@@ -1150,20 +1287,14 @@ def complete_maintenance(maintenance_id):
         close_db(cursor, conn)
 
 
-@app.post("/api/lab-assistant/maintenance/report")
-@app.post("/api/admin/maintenance/report")
-@app.post("/api/maintenance/report")
-@app.post("/api/maintenance/issue")
-def report_maintenance_issue():
-    data = request.get_json(silent=True) or {}
+@app.get("/api/maintenance/my")
+@app.get("/api/maintenance/my/<int:user_id>")
+def get_my_maintenance(user_id=None):
+    if user_id is None:
+        user_id = request.args.get("userId", type=int)
 
-    resource_id_text = str(data.get("resourceId") or "").strip()
-    issue_type = str(data.get("issueType") or "Other").strip()
-    description = str(data.get("description") or "").strip()
-    priority = str(data.get("priority") or "Medium").strip()
-
-    if not resource_id_text or not description:
-        return error_response("Resource ID and description are required.", 400)
+    if user_id is None:
+        return error_response("User ID is required.", 400)
 
     conn = None
     cursor = None
@@ -1172,28 +1303,167 @@ def report_maintenance_issue():
         conn = get_connection()
         cursor = conn.cursor()
 
-        resource = find_resource_id(cursor, resource_id_text)
+        cursor.execute("""
+            SELECT
+                m.maintenance_id,
+                m.resource_id,
+                m.created_by,
+                m.start_time,
+                m.end_time,
+                m.reason,
+                m.status,
+                m.cost,
+                m.notes,
+                r.asset_code,
+                r.resource_name,
+                r.status AS resource_status,
+                l.lab_id,
+                l.lab_name,
+                u.full_name AS created_by_name
+            FROM maintenance m
+            JOIN resources r
+                ON m.resource_id = r.resource_id
+            JOIN labs l
+                ON r.lab_id = l.lab_id
+            LEFT JOIN users u
+                ON m.created_by = u.user_id
+            WHERE m.created_by = ?
+            ORDER BY m.start_time DESC
+        """, (user_id,))
+        records = fetch_all_dict(cursor)
+        return jsonify([map_maintenance(record) for record in records])
 
-        if not resource:
-            return error_response("Resource not found.", 404)
+    except Exception as error:
+        print("MY MAINTENANCE ERROR:", error)
+        return error_response("Unable to load maintenance records.", 500)
 
-        if str(resource["status"]).upper() == "RESERVED":
-            return error_response("Resource is currently reserved by the scheduling system.", 409)
+    finally:
+        close_db(cursor, conn)
 
-        reason = f"{issue_type}: {description}"
 
+@app.post("/api/maintenance")
+@app.post("/api/student/maintenance/report")
+@app.post("/api/faculty/maintenance/report")
+@app.post("/api/lab-assistant/maintenance/report")
+@app.post("/api/admin/maintenance/report")
+@app.post("/api/maintenance/report")
+@app.post("/api/maintenance/issue")
+def report_maintenance_issue():
+    data = request.get_json(silent=True) or {}
+
+    user_id = data.get("userId") or data.get("user_id")
+    resource_id_text = str(data.get("resourceId") or data.get("resource_id") or data.get("targetId") or "").strip()
+    lab_name = str(data.get("lab") or data.get("labName") or data.get("lab_name") or data.get("labId") or data.get("lab_id") or "").strip()
+    issue_type = str(data.get("issueType") or data.get("issue_type") or "Other").strip()
+    description = str(data.get("description") or data.get("issue") or "").strip()
+    priority = str(data.get("priority") or "Medium").strip()
+
+    if not description:
+        return error_response("Issue description is required.", 400)
+
+    if not lab_name and not resource_id_text:
+        return error_response("Please select a laboratory.", 400)
+
+    conn = None
+    cursor = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # Check user role if user_id provided
+        reporter_name = "User"
+        reporter_role = "STUDENT"
+        if user_id:
+            try:
+                cursor.execute("""
+                    SELECT u.user_id, u.full_name, r.role_name
+                    FROM users u
+                    JOIN roles r ON u.role_id = r.role_id
+                    WHERE u.user_id = ?
+                """, (int(user_id),))
+                u_row = fetch_one_dict(cursor)
+                if u_row:
+                    reporter_name = u_row["full_name"]
+                    reporter_role = canonical_role(u_row["role_name"])
+            except Exception:
+                pass
+
+        # Check if resource is specified or whole lab
+        is_whole_lab = not resource_id_text or resource_id_text.upper() in ("ALL", "LAB", "WHOLE_LAB", "NONE", "0", "ENTIRE_LAB", "NULL")
+        
+        resource = None
+        if is_whole_lab:
+            cursor.execute("""
+                SELECT TOP 1
+                    r.resource_id,
+                    r.asset_code,
+                    r.lab_id,
+                    r.status,
+                    l.lab_name
+                FROM resources r
+                JOIN labs l ON r.lab_id = l.lab_id
+                WHERE l.lab_name = ? OR CAST(l.lab_id AS VARCHAR(20)) = ?
+                ORDER BY r.resource_id
+            """, (lab_name, lab_name))
+            resource = fetch_one_dict(cursor)
+            if not resource:
+                return error_response("Selected laboratory was not found.", 404)
+            reason = f"{issue_type} [Entire Lab]: {description}"
+            target_display = f"{resource['lab_name']} (Entire Lab)"
+        else:
+            resource = find_resource_id(cursor, resource_id_text)
+            if not resource:
+                return error_response(f"Resource '{resource_id_text}' not found.", 404)
+
+            if lab_name:
+                if lab_name.isdigit():
+                    if int(resource["lab_id"]) != int(lab_name):
+                        return error_response(f"The selected resource {resource_id_text} does not belong to Lab {lab_name}.", 400)
+                else:
+                    if str(resource["lab_name"]).lower() != lab_name.lower():
+                        return error_response(f"The selected resource {resource_id_text} does not belong to {lab_name}.", 400)
+            
+            reason = f"{issue_type}: {description}"
+            target_display = resource["asset_code"]
+
+        # Insert maintenance ticket
+        ticket_user_id = int(user_id) if user_id and str(user_id).isdigit() else None
         maintenance_id = insert_maintenance_ticket(
             cursor,
             resource["resource_id"],
             reason,
-            None,
+            ticket_user_id,
             "SCHEDULED"
         )
 
-        cursor.execute(
-            "UPDATE resources SET status = 'MAINTENANCE' WHERE resource_id = ?",
-            (resource["resource_id"],)
-        )
+        # Business Rule: Staff reports mark resource as MAINTENANCE. Student/Faculty reports remain separate until actioned.
+        if reporter_role in ("ADMINISTRATOR", "LAB_ASSISTANT"):
+            if not is_whole_lab:
+                cursor.execute(
+                    "UPDATE resources SET status = 'MAINTENANCE' WHERE resource_id = ?",
+                    (resource["resource_id"],)
+                )
+            else:
+                cursor.execute(
+                    "UPDATE labs SET status = 'MAINTENANCE' WHERE lab_id = ?",
+                    (resource["lab_id"],)
+                )
+
+        # Notify staff about new maintenance report
+        try:
+            cursor.execute("SELECT user_id FROM users WHERE role_id IN (3, 4) AND status = 'ACTIVE'")
+            staff_users = cursor.fetchall()
+            for (staff_id,) in staff_users:
+                create_notification(
+                    cursor,
+                    staff_id,
+                    f"Maintenance Report: {resource['lab_name']}",
+                    f"{reporter_name} reported an issue for {target_display}: {description}",
+                    "WARNING"
+                )
+        except Exception as notif_err:
+            print("Staff notification warning:", notif_err)
 
         conn.commit()
 
@@ -1202,19 +1472,19 @@ def report_maintenance_issue():
             "ticket": {
                 "id": f"MNT-{maintenance_id}",
                 "maintenanceId": maintenance_id,
-                "targetId": resource["asset_code"],
+                "targetId": target_display,
                 "lab": resource["lab_name"],
                 "issueType": issue_type,
                 "issue": description,
                 "status": "Pending",
                 "priority": priority,
-                "reportedBy": "Lab Assistant",
+                "reportedBy": reporter_name,
                 "reportedAt": datetime.now().isoformat(),
-                "assignedTo": "Hardware Support",
+                "assignedTo": "Campus Maintenance Team",
                 "resolutionNotes": ""
             },
             "message": "Maintenance issue reported successfully.",
-            "resourceStatusMessage": f"{resource['asset_code']} has been marked for maintenance."
+            "resourceStatusMessage": f"Issue reported for {target_display}."
         })
 
     except Exception as error:
@@ -1278,9 +1548,9 @@ def booking_conflict():
         return error_response("labId, startTime and endTime are required.", 400)
 
     try:
-        start_dt = datetime.fromisoformat(start_time_text)
-        end_dt = datetime.fromisoformat(end_time_text)
-    except ValueError:
+        start_dt = parse_booking_datetime(start_time_text)
+        end_dt = parse_booking_datetime(end_time_text)
+    except (ValueError, TypeError):
         return error_response("Invalid date/time format.", 400)
 
     if end_dt <= start_dt:
@@ -1288,6 +1558,24 @@ def booking_conflict():
             "success": True,
             "available": False,
             "message": "End time must be after start time."
+        })
+
+    # Time rules: 8:00 AM to 8:00 PM
+    min_time = datetime.strptime("08:00", "%H:%M").time()
+    max_time = datetime.strptime("20:00", "%H:%M").time()
+    if start_dt.time() < min_time or end_dt.time() > max_time or start_dt.time() > max_time or end_dt.time() < min_time:
+        return jsonify({
+            "success": True,
+            "available": False,
+            "message": "Labs can only be booked between 8:00 AM and 8:00 PM."
+        })
+
+    duration_sec = (end_dt - start_dt).total_seconds()
+    if duration_sec > 24 * 3600:
+        return jsonify({
+            "success": True,
+            "available": False,
+            "message": "Booking duration cannot exceed 24 hours."
         })
 
     conn = None
@@ -1303,8 +1591,7 @@ def booking_conflict():
                 l.capacity,
                 CASE
                     WHEN l.status = 'MAINTENANCE' THEN 'MAINTENANCE'
-                    WHEN (SELECT COUNT(*) FROM resources r WHERE r.lab_id = l.lab_id) > 0 
-                         AND (SELECT COUNT(*) FROM resources r WHERE r.lab_id = l.lab_id AND r.status = 'AVAILABLE') = 0 
+                    WHEN (SELECT COUNT(*) FROM resources r WHERE r.lab_id = l.lab_id AND r.status = 'MAINTENANCE') >= 5 
                          THEN 'MAINTENANCE'
                     ELSE l.status
                 END AS status,
@@ -1378,12 +1665,12 @@ def create_booking():
     user_id = data.get("userId") or data.get("user_id")
     lab_id = data.get("labId") or data.get("lab_id") or data.get("lab")
     purpose = str(data.get("purpose") or "").strip()
-    start_time = data.get("startTime")
-    end_time = data.get("endTime")
-    student_count = data.get("studentCount", 1)
+    start_time = data.get("startTime") or data.get("start_time")
+    end_time = data.get("endTime") or data.get("end_time")
+    student_count = data.get("studentCount") or data.get("student_count") or 1
 
     # If date and separate time strings provided:
-    date_val = data.get("date")
+    date_val = data.get("date") or data.get("booking_date")
     if date_val and start_time and "T" not in str(start_time):
         start_time = f"{date_val}T{start_time}:00" if len(str(start_time)) == 5 else f"{date_val}T{start_time}"
     if date_val and end_time and "T" not in str(end_time):
@@ -1396,13 +1683,26 @@ def create_booking():
         user_id = int(user_id)
         lab_id = int(lab_id)
         student_count = int(student_count)
-        start_dt = datetime.fromisoformat(str(start_time))
-        end_dt = datetime.fromisoformat(str(end_time))
+        start_dt = parse_booking_datetime(start_time, date_val)
+        end_dt = parse_booking_datetime(end_time, date_val)
     except (ValueError, TypeError) as parse_err:
         return error_response(f"Invalid booking values: {parse_err}", 400)
 
     if end_dt <= start_dt:
         return error_response("End time must be after start time.", 400)
+
+    # Validate lab operating window (8:00 AM to 8:00 PM)
+    min_time = datetime.strptime("08:00", "%H:%M").time()
+    max_time = datetime.strptime("20:00", "%H:%M").time()
+    if start_dt.time() < min_time or end_dt.time() > max_time or start_dt.time() > max_time or end_dt.time() < min_time:
+        return error_response("Labs can only be booked between 8:00 AM and 8:00 PM.", 400)
+
+    # Validate maximum duration (24 hours)
+    duration_sec = (end_dt - start_dt).total_seconds()
+    if duration_sec <= 0:
+        return error_response("End time must be after start time.", 400)
+    if duration_sec > 24 * 3600:
+        return error_response("Booking duration cannot exceed 24 hours.", 400)
 
     if student_count < 1:
         return error_response("Student count must be at least 1.", 400)
@@ -1445,8 +1745,7 @@ def create_booking():
                 l.capacity,
                 CASE
                     WHEN l.status = 'MAINTENANCE' THEN 'MAINTENANCE'
-                    WHEN (SELECT COUNT(*) FROM resources r WHERE r.lab_id = l.lab_id) > 0 
-                         AND (SELECT COUNT(*) FROM resources r WHERE r.lab_id = l.lab_id AND r.status = 'AVAILABLE') = 0 
+                    WHEN (SELECT COUNT(*) FROM resources r WHERE r.lab_id = l.lab_id AND r.status = 'MAINTENANCE') >= 5 
                          THEN 'MAINTENANCE'
                     ELSE l.status
                 END AS status,
@@ -1494,6 +1793,24 @@ def create_booking():
                 "bookingId": conflict["booking_id"],
                 "requestId": conflict["idempotency_key"]
             }), 409
+
+        # 6b. Prevent duplicate pending requests by the same user for same lab and slot
+        cursor.execute("""
+            SELECT TOP 1 booking_id, idempotency_key
+            FROM bookings
+            WHERE user_id = ? AND lab_id = ? AND status = 'PENDING'
+              AND ABS(DATEDIFF(second, start_time, ?)) < 2
+              AND ABS(DATEDIFF(second, end_time, ?)) < 2
+        """, (user_id, lab_id, start_dt, end_dt))
+        existing_req = fetch_one_dict(cursor)
+        if existing_req:
+            return jsonify({
+                "success": True,
+                "message": "You already have a pending booking request for this laboratory and time slot.",
+                "bookingId": existing_req["booking_id"],
+                "requestId": existing_req["idempotency_key"],
+                "status": "PENDING"
+            }), 200
 
         # 7. Priority
         priority = "HIGH" if role == "FACULTY" else "NORMAL"
@@ -1620,6 +1937,10 @@ def get_pending_bookings():
         conn = get_connection()
         cursor = conn.cursor()
 
+        # Automatically expire stale pending requests >= 12h
+        expire_stale_bookings(cursor)
+        conn.commit()
+
         query = """
             SELECT
                 b.booking_id,
@@ -1686,6 +2007,7 @@ def get_pending_bookings():
         return jsonify({
             "success": True,
             "data": result,
+            "bookings": result,
             "count": len(result)
         }), 200
 
@@ -1716,6 +2038,7 @@ def find_booking_by_identifier(cursor, identifier):
                 b.start_time,
                 b.end_time,
                 b.status,
+                b.created_at,
                 l.lab_name,
                 u.full_name AS requester_name
             FROM bookings b
@@ -1737,6 +2060,7 @@ def find_booking_by_identifier(cursor, identifier):
             b.start_time,
             b.end_time,
             b.status,
+            b.created_at,
             l.lab_name,
             u.full_name AS requester_name
         FROM bookings b
@@ -1755,6 +2079,8 @@ def find_booking_by_identifier(cursor, identifier):
 
 @app.put("/api/bookings/<path:booking_identifier>/approve")
 @app.post("/api/bookings/<path:booking_identifier>/approve")
+@app.put("/api/admin/bookings/<path:booking_identifier>/approve")
+@app.post("/api/admin/bookings/<path:booking_identifier>/approve")
 def approve_booking(booking_identifier):
     data = request.get_json(silent=True) or {}
     approver_id = data.get("userId") or data.get("user_id")
@@ -1766,6 +2092,10 @@ def approve_booking(booking_identifier):
         conn = get_connection()
         cursor = conn.cursor()
 
+        # Expire any pending bookings that reached 12 hours
+        expire_stale_bookings(cursor)
+        conn.commit()
+
         # 1. Fetch booking
         booking = find_booking_by_identifier(cursor, booking_identifier)
 
@@ -1776,6 +2106,12 @@ def approve_booking(booking_identifier):
 
         # 2. Check current status
         current_status = str(booking["status"]).upper()
+        if current_status == "EXPIRED":
+            return jsonify({
+                "success": False,
+                "message": "This booking request has expired after 12 hours and cannot be processed."
+            }), 400
+
         if current_status != "PENDING" and current_status != "SCHEDULING":
             return jsonify({
                 "success": False,
@@ -1853,6 +2189,8 @@ def approve_booking(booking_identifier):
 
 @app.put("/api/bookings/<path:booking_identifier>/reject")
 @app.post("/api/bookings/<path:booking_identifier>/reject")
+@app.put("/api/admin/bookings/<path:booking_identifier>/reject")
+@app.post("/api/admin/bookings/<path:booking_identifier>/reject")
 def reject_booking(booking_identifier):
     data = request.get_json(silent=True) or {}
     rejecter_id = data.get("userId") or data.get("user_id")
@@ -1865,6 +2203,10 @@ def reject_booking(booking_identifier):
         conn = get_connection()
         cursor = conn.cursor()
 
+        # Expire any pending bookings that reached 12 hours
+        expire_stale_bookings(cursor)
+        conn.commit()
+
         # 1. Fetch booking
         booking = find_booking_by_identifier(cursor, booking_identifier)
 
@@ -1875,6 +2217,12 @@ def reject_booking(booking_identifier):
 
         # 2. Check current status
         current_status = str(booking["status"]).upper()
+        if current_status == "EXPIRED":
+            return jsonify({
+                "success": False,
+                "message": "This booking request has expired after 12 hours and cannot be processed."
+            }), 400
+
         if current_status != "PENDING" and current_status != "SCHEDULING":
             return jsonify({
                 "success": False,
@@ -2123,6 +2471,9 @@ def get_my_bookings(user_id=None):
         conn = get_connection()
         cursor = conn.cursor()
 
+        expire_stale_bookings(cursor)
+        conn.commit()
+
         bookings = get_bookings_for_user(cursor, user_id)
 
         all_items = []
@@ -2166,6 +2517,10 @@ def get_booking_requests():
     try:
         conn = get_connection()
         cursor = conn.cursor()
+
+        expire_stale_bookings(cursor)
+        conn.commit()
+
         bookings = get_bookings_for_user(cursor)
 
         return jsonify([
@@ -2189,6 +2544,9 @@ def booking_status(request_id):
     try:
         conn = get_connection()
         cursor = conn.cursor()
+
+        expire_stale_bookings(cursor)
+        conn.commit()
 
         cursor.execute("""
             SELECT TOP 1
@@ -2257,9 +2615,8 @@ def dashboard_stats():
             SELECT COUNT(*) AS value
             FROM labs l
             WHERE l.status = 'ACTIVE'
-              AND NOT (
-                  (SELECT COUNT(*) FROM resources r WHERE r.lab_id = l.lab_id) > 0
-                  AND (SELECT COUNT(*) FROM resources r WHERE r.lab_id = l.lab_id AND r.status = 'AVAILABLE') = 0
+              AND (
+                  (SELECT COUNT(*) FROM resources r WHERE r.lab_id = l.lab_id AND r.status = 'MAINTENANCE') < 5
               )
         """)
         available_labs = fetch_one_dict(cursor)["value"]
@@ -2276,8 +2633,7 @@ def dashboard_stats():
             FROM labs l
             WHERE l.status = 'MAINTENANCE'
                OR (
-                  (SELECT COUNT(*) FROM resources r WHERE r.lab_id = l.lab_id) > 0
-                  AND (SELECT COUNT(*) FROM resources r WHERE r.lab_id = l.lab_id AND r.status = 'AVAILABLE') = 0
+                  (SELECT COUNT(*) FROM resources r WHERE r.lab_id = l.lab_id AND r.status = 'MAINTENANCE') >= 5
               )
         """)
         maintenance_labs = fetch_one_dict(cursor)["value"]

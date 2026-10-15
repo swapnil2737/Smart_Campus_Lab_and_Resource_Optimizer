@@ -1,47 +1,39 @@
-/* ==========================================================================
-   FACULTY DASHBOARD SPECIFIC STYLES
-   Unified High-Performance Dark Theme
-   ========================================================================== */
+/* css/faculty.css */
 
-:root {
-    --primary-color: #FF6A00;
-    --accent-color: #FF6A00;
-}
 
-/* Faculty Reserved Lab Card Highlight (High Priority Blue) */
 .lab-card.faculty-reserved {
-    border-top-color: #3B82F6;
-    background-color: var(--bg-card);
-    border-color: rgba(59, 130, 246, 0.4);
+    border-top-color: #6f42c1;
+    background-color: #fcfaff;
 }
 
 .lab-card.faculty-reserved .lab-status {
-    background: rgba(59, 130, 246, 0.2);
-    color: #60A5FA;
-    font-weight: 800;
-    border: 1px solid rgba(59, 130, 246, 0.35);
+    background: #e0d4f5;
+    color: #4a235a;
+    font-weight: 700;
 }
 
 .lab-card.faculty-reserved .util-fill {
-    background: #3B82F6;
+    background: #6f42c1;
 }
 
 .status-faculty-reserved {
-    background: rgba(59, 130, 246, 0.15);
-    color: #60A5FA;
-    border: 1px solid rgba(59, 130, 246, 0.4);
-    font-weight: 800;
+    background: #e0d4f5;
+    color: #4a235a;
 }
 
-/* Faculty Reservation Notice Badge */
-.faculty-priority-callout {
-    background: rgba(59, 130, 246, 0.1);
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    border-left: 4px solid #3B82F6;
-    padding: 0.75rem 1rem;
-    border-radius: var(--radius-sm);
-    color: #93C5FD;
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-top: 0.75rem;
+
+/* Faculty sidebar: deep blue instead of teal */
+.faculty .sidebar {
+    background: rgba(12, 45, 80, 0.6);
+}
+
+.faculty .nav-link.active {
+    border-left-color: #5dade2;
+    background-color: rgba(93, 173, 226, 0.15);
+}
+
+@media (max-width: 768px) {
+    .faculty .sidebar {
+        background: #0c2d50;   /* solid on mobile, like the student one */
+    }
 }

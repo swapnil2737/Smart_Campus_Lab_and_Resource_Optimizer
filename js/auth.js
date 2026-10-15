@@ -204,13 +204,43 @@ document.addEventListener('DOMContentLoaded', () => {
         if (forgotError) forgotError.style.display = 'none';
         if (forgotSuccess) forgotSuccess.style.display = 'none';
         if (forgotForm) forgotForm.reset();
+        
+        // If username was already entered in main login form, pre-populate in forgot modal
+        const mainUsername = document.getElementById('username')?.value?.trim();
+        const forgotEmailInput = document.getElementById('forgot-email');
+        if (mainUsername && forgotEmailInput) {
+            forgotEmailInput.value = mainUsername;
+        }
+
         forgotModal.style.display = 'flex';
+        if (forgotEmailInput) forgotEmailInput.focus();
     };
 
     const closeForgotModal = () => {
         if (!forgotModal) return;
         forgotModal.style.display = 'none';
     };
+
+    // Toggle password visibility in forgot password modal
+    const togglePass1 = document.getElementById('toggle-forgot-password-1');
+    const newPassInput = document.getElementById('forgot-new-password');
+    if (togglePass1 && newPassInput) {
+        togglePass1.addEventListener('click', () => {
+            const isPass = newPassInput.type === 'password';
+            newPassInput.type = isPass ? 'text' : 'password';
+            togglePass1.textContent = isPass ? 'Hide' : 'Show';
+        });
+    }
+
+    const togglePass2 = document.getElementById('toggle-forgot-password-2');
+    const confirmPassInput = document.getElementById('forgot-confirm-password');
+    if (togglePass2 && confirmPassInput) {
+        togglePass2.addEventListener('click', () => {
+            const isPass = confirmPassInput.type === 'password';
+            confirmPassInput.type = isPass ? 'text' : 'password';
+            togglePass2.textContent = isPass ? 'Hide' : 'Show';
+        });
+    }
 
     if (forgotLink) {
         forgotLink.addEventListener('click', (e) => {

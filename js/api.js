@@ -228,10 +228,20 @@ const API = {
     },
 
     reportMaintenanceIssue: async function (data) {
-        return await requestBackend("/lab-assistant/maintenance/report", {
+        return await requestBackend("/maintenance/report", {
             method: "POST",
             body: JSON.stringify(data)
         });
+    },
+
+    reportIssue: async function (data) {
+        return await this.reportMaintenanceIssue(data);
+    },
+
+    getMyMaintenanceIssues: async function (userIdParam) {
+        const userId = Number(userIdParam || sessionStorage.getItem("smartCampusUserId"));
+        if (!userId) return [];
+        return await requestBackend(`/maintenance/my/${userId}`);
     },
 
 

@@ -180,6 +180,173 @@ const BookingUtils = {
 
 
     // =========================================================
+    // SINGLE TIME FIELD PARSER & FORMATTER (8:00 AM - 8:00 PM)
+    // =========================================================
+    parseTimeTo24: (timeStr) => {
+        if (!timeStr) return "";
+        const raw = String(timeStr).trim();
+
+        // Match 12-hour format: "10:00 AM", "12:45 PM", "3:38 PM", "8:15 am", "8pm", "8 am", "10:00am", "12:45pm"
+        const match12 = raw.match(/^(\d{1,2})(?::(\d{1,2}))?\s*([aApP][mM])$/);
+        if (match12) {
+            let h = parseInt(match12[1], 10);
+            const m = match12[2] !== undefined ? parseInt(match12[2], 10) : 0;
+            const ampm = match12[3].toUpperCase();
+            if (isNaN(h) || isNaN(m) || h < 1 || h > 12 || m < 0 || m > 59) return "";
+            if (ampm === "AM") {
+                if (h === 12) h = 0;
+            } else if (ampm === "PM") {
+                if (h !== 12) h += 12;
+            }
+            return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+        }
+
+        // Match 24-hour format: "08:15", "15:38", "20:00", "8:00"
+        const match24 = raw.match(/^(\d{1,2}):(\d{1,2})(?::\d{1,2})?$/);
+        if (match24) {
+            const h = parseInt(match24[1], 10);
+            const m = parseInt(match24[2], 10);
+            if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) return "";
+            return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+        }
+
+        return "";
+    },
+
+    formatTimeTo12: (timeStr) => {
+        if (!timeStr) return "";
+        const time24 = BookingUtils.parseTimeTo24(timeStr);
+        if (!time24) return timeStr;
+        const [hStr, mStr] = time24.split(":");
+        const h = parseInt(hStr, 10);
+        const ampm = h >= 12 ? "PM" : "AM";
+        const h12 = h % 12 === 0 ? 12 : h % 12;
+        return `${h12}:${mStr} ${ampm}`;
+    },
+
+    formatTime12Hour: (timeStr) => {
+        return BookingUtils.formatTimeTo12(timeStr);
+    },
+
+    getTimePickerValue: (prefix = "book-start") => {
+        const el = document.getElementById(prefix);
+        if (el && el.value) {
+            return BookingUtils.parseTimeTo24(el.value) || el.value.trim();
+        }
+
+        const hourEl = document.getElementById(`${prefix}-hour`);
+        const minEl = document.getElementById(`${prefix}-min`);
+        const ampmEl = document.getElementById(`${prefix}-ampm`);
+
+        if (hourEl && minEl && ampmEl) {
+            const hVal = hourEl.value.trim();
+            const mVal = minEl.value.trim();
+            const ampmVal = (ampmEl.value || "AM").trim().toUpperCase();
+
+            if (hVal !== "") {
+                let h = parseInt(hVal, 10);
+                if (isNaN(h) || h < 1 || h > 12) return "";
+
+                let m = mVal !== "" ? parseInt(mVal, 10) : 0;
+                if (isNaN(m) || m < 0 || m > 59) return "";
+
+                let h24 = h;
+                if (ampmVal === "AM") {
+                    if (h === 12) h24 = 0;
+                } else if (ampmVal === "PM") {
+                    if (h !== 12) h24 += 12;
+                }
+
+                return `${String(h24).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+            }
+        }
+        return "";
+    },
+
+    initTimePickerRow: (prefix = "book-start", targetHiddenId = "book-start") => {
+        const hourEl = document.getElementById(`${prefix}-hour`);
+        const minEl = document.getElementById(`${prefix}-min`);
+        const ampmEl = document.getElementById(`${prefix}-ampm`);
+        const hiddenEl = document.getElementById(targetHiddenId);
+
+        if (!hourEl || !minEl || !ampmEl || !hiddenEl) return;
+
+        const updateHidden = () => {
+            const hVal = hourEl.value.trim();
+            const mVal = minEl.value.trim();
+            const ampmVal = (ampmEl.value || "AM").trim().toUpperCase();
+
+            if (!hVal && !mVal) {
+                hiddenEl.value = "";
+                hiddenEl.dispatchEvent(new Event("input", { bubbles: true }));
+                hiddenEl.dispatchEvent(new Event("change", { bubbles: true }));
+                return;
+            }
+
+            let h = parseInt(hVal, 10);
+            if (isNaN(h)) {
+                hiddenEl.value = "";
+                return;
+            }
+            if (h < 1) h = 1;
+            if (h > 12) h = 12;
+
+            let m = mVal ? parseInt(mVal, 10) : 0;
+            if (isNaN(m)) m = 0;
+            if (m < 0) m = 0;
+            if (m > 59) m = 59;
+
+            let h24 = h;
+            if (ampmVal === "AM") {
+                if (h === 12) h24 = 0;
+            } else if (ampmVal === "PM") {
+                if (h !== 12) h24 += 12;
+            }
+
+            const time24 = `${String(h24).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+            hiddenEl.value = time24;
+            hiddenEl.dispatchEvent(new Event("input", { bubbles: true }));
+            hiddenEl.dispatchEvent(new Event("change", { bubbles: true }));
+        };
+
+        hourEl.addEventListener("input", updateHidden);
+        hourEl.addEventListener("change", updateHidden);
+        minEl.addEventListener("input", updateHidden);
+        minEl.addEventListener("change", updateHidden);
+        ampmEl.addEventListener("change", updateHidden);
+
+        hourEl.addEventListener("blur", () => {
+            if (hourEl.value.trim()) {
+                let h = parseInt(hourEl.value.trim(), 10);
+                if (!isNaN(h) && h >= 1 && h <= 12) {
+                    hourEl.value = String(h).padStart(2, "0");
+                }
+            }
+            updateHidden();
+        });
+
+        minEl.addEventListener("blur", () => {
+            if (minEl.value.trim()) {
+                let m = parseInt(minEl.value.trim(), 10);
+                if (!isNaN(m) && m >= 0 && m <= 59) {
+                    minEl.value = String(m).padStart(2, "0");
+                }
+            }
+            updateHidden();
+        });
+
+        if (hourEl.value || minEl.value) {
+            updateHidden();
+        }
+    },
+
+    initTimeSelectSync: () => {
+        BookingUtils.initTimePickerRow("book-start", "book-start");
+        BookingUtils.initTimePickerRow("book-end", "book-end");
+    },
+
+
+    // =========================================================
     // CHECK LAB AVAILABILITY
     // =========================================================
     isLabAvailable: async (
@@ -262,13 +429,16 @@ const BookingUtils = {
         // 3. maintenance
         // =====================================================
 
+        const start24 = BookingUtils.parseTimeTo24(startTime) || startTime;
+        const end24 = BookingUtils.parseTimeTo24(endTime) || endTime;
+
         try {
 
             const result =
                 await API.checkBookingAvailability(
                     labId,
-                    `${date}T${startTime}:00`,
-                    `${date}T${endTime}:00`
+                    `${date}T${start24}:00`,
+                    `${date}T${end24}:00`
                 );
 
 
@@ -345,25 +515,80 @@ const BookingUtils = {
 
 
         // -----------------------------------------------------
-        // Check time
+        // Check presence
+        // -----------------------------------------------------
+
+        if (!startTime || !endTime) {
+            return {
+                valid: false,
+                message: "Start time and end time are required."
+            };
+        }
+
+        const start24 = BookingUtils.parseTimeTo24(startTime);
+        const end24 = BookingUtils.parseTimeTo24(endTime);
+
+        if (!start24 || !end24) {
+            return {
+                valid: false,
+                message: "Please enter a valid time (e.g. 10:00 AM, 12:45 PM, 3:38 PM)."
+            };
+        }
+
+
+        // -----------------------------------------------------
+        // Operating Hours: 8:00 AM to 8:00 PM (08:00–20:00)
         // -----------------------------------------------------
 
         if (
-            !startTime ||
-            !endTime ||
-            startTime >= endTime
+            start24 < "08:00" ||
+            end24 > "20:00" ||
+            start24 > "20:00" ||
+            end24 < "08:00"
         ) {
-
             return {
                 valid: false,
-                message:
-                    "End time must be later than start time."
+                message: "Labs can only be booked between 8:00 AM and 8:00 PM."
+            };
+        }
+
+
+        // -----------------------------------------------------
+        // Start time must be before end time
+        // -----------------------------------------------------
+
+        if (start24 >= end24) {
+            return {
+                valid: false,
+                message: "End time must be later than start time."
+            };
+        }
+
+
+        // -----------------------------------------------------
+        // Duration limit: Max 24 hours (and > 0 minutes)
+        // -----------------------------------------------------
+
+        const [sHours, sMins] = start24.split(":").map(Number);
+        const [eHours, eMins] = end24.split(":").map(Number);
+        const durationMinutes = (eHours * 60 + eMins) - (sHours * 60 + sMins);
+
+        if (durationMinutes <= 0) {
+            return {
+                valid: false,
+                message: "End time must be later than start time."
+            };
+        }
+
+        if (durationMinutes > 24 * 60) {
+            return {
+                valid: false,
+                message: "Booking duration cannot exceed 24 hours."
             };
         }
 
 
         const now = new Date();
-
 
         const year =
             now.getFullYear();
@@ -377,7 +602,6 @@ const BookingUtils = {
             String(
                 now.getDate()
             ).padStart(2, "0");
-
 
         const todayStr =
             `${year}-${month}-${day}`;
@@ -395,18 +619,15 @@ const BookingUtils = {
                     now.getHours()
                 ).padStart(2, "0");
 
-
             const currentMin =
                 String(
                     now.getMinutes()
                 ).padStart(2, "0");
 
-
             const currentTime =
                 `${currentHour}:${currentMin}`;
 
-
-            if (startTime < currentTime) {
+            if (start24 < currentTime) {
 
                 return {
                     valid: false,
@@ -415,7 +636,6 @@ const BookingUtils = {
                 };
             }
         }
-
 
         return {
             valid: true
